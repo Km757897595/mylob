@@ -2353,7 +2353,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'Qwen Image Edit is an image-to-image model that edits images based on input images and text prompts, enabling precise adjustments and creative transformations.',
     displayName: 'Qwen Image Edit',
-    enabled: true,
     id: 'qwen-image-edit',
     organization: 'Qwen',
     parameters: {
@@ -2424,7 +2423,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'Qwen-Image is a general image generation model supporting multiple art styles and strong complex text rendering, especially Chinese and English. It supports multi-line layouts, paragraph-level text, and fine detail for complex text-image layouts.',
     displayName: 'Qwen Image',
-    enabled: true,
     id: 'qwen-image',
     organization: 'Qwen',
     parameters: {
@@ -2493,7 +2491,6 @@ const qwenImageModels: AIImageModelCard[] = [
   {
     description: 'Wanxiang 2.5 I2I Preview supports single-image editing and multi-image fusion.',
     displayName: 'Wanxiang2.5 I2I Preview',
-    enabled: true,
     id: 'wan2.5-i2i-preview',
     organization: 'Qwen',
     parameters: {
@@ -2518,7 +2515,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'Wanxiang 2.5 T2I supports flexible selection of image dimensions within total pixel area and aspect ratio constraints.',
     displayName: 'Wanxiang2.5 T2I Preview',
-    enabled: true,
     id: 'wan2.5-t2i-preview',
     organization: 'Qwen',
     parameters: {
@@ -2540,7 +2536,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'Wanxiang 2.2 Flash is the latest model with upgrades in creativity, stability, and realism, delivering fast generation and high value.',
     displayName: 'Wanxiang2.2 T2I Flash',
-    enabled: true,
     id: 'wan2.2-t2i-flash',
     organization: 'Qwen',
     parameters: {
@@ -2562,7 +2557,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'Wanxiang 2.2 Plus is the latest model with upgrades in creativity, stability, and realism, producing richer details.',
     displayName: 'Wanxiang2.2 T2I Plus',
-    enabled: true,
     id: 'wan2.2-t2i-plus',
     organization: 'Qwen',
     parameters: {
@@ -2667,7 +2661,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'FLUX.1 [schnell] is the most advanced open-source few-step model, surpassing similar competitors and even strong non-distilled models like Midjourney v6.0 and DALL-E 3 (HD). It is finely tuned to preserve pretraining diversity, significantly improving visual quality, instruction following, size/aspect variation, font handling, and output diversity.',
     displayName: 'FLUX.1 [schnell]',
-    enabled: true,
     id: 'flux-schnell',
     organization: 'Qwen',
     parameters: {
@@ -2692,7 +2685,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'FLUX.1 [dev] is an open-weights distilled model for non-commercial use. It keeps near-pro image quality and instruction following while running more efficiently, using resources better than same-size standard models.',
     displayName: 'FLUX.1 [dev]',
-    enabled: true,
     id: 'flux-dev',
     organization: 'Qwen',
     parameters: {
@@ -2717,7 +2709,6 @@ const qwenImageModels: AIImageModelCard[] = [
     description:
       'FLUX.1-merged combines the deep features explored in "DEV" with the high-speed advantages of "Schnell", extending performance limits and broadening applications.',
     displayName: 'FLUX.1-merged',
-    enabled: true,
     id: 'flux-merged',
     organization: 'Qwen',
     parameters: {
