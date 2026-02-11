@@ -2311,8 +2311,8 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'qwen-image-edit-max',
     organization: 'Qwen',
     parameters: {
-      imageUrl: {
-        default: '',
+      imageUrls: {
+        default: [],
       },
       prompt: {
         default: '',
@@ -2334,8 +2334,8 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'qwen-image-edit-plus',
     organization: 'Qwen',
     parameters: {
-      imageUrl: {
-        default: '',
+      imageUrls: {
+        default: [],
       },
       prompt: {
         default: '',
@@ -2452,8 +2452,8 @@ const qwenImageModels: AIImageModelCard[] = [
     organization: 'Qwen',
     parameters: {
       height: { default: 1280, max: 1280, min: 768, step: 1 },
-      imageUrl: {
-        default: '',
+      imageUrls: {
+        default: [],
       },
       prompt: {
         default: '',
@@ -2497,8 +2497,8 @@ const qwenImageModels: AIImageModelCard[] = [
     organization: 'Qwen',
     parameters: {
       height: { default: 1280, max: 1280, min: 768, step: 1 },
-      imageUrl: {
-        default: '',
+      imageUrls: {
+        default: [],
       },
       prompt: {
         default: '',

@@ -144,14 +144,12 @@ async function createMultimodalGeneration(
   const endpoint = `https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`;
   log('Creating image with model: %s, endpoint: %s', model, endpoint);
 
-  const content: Array<{ image: string } | { text: string }> = [{ text: params.prompt }];
+  const content: Array<{ image: string | string[] } | { text: string }> = [{ text: params.prompt }];
 
   if (params.imageUrl) {
     content.unshift({ image: params.imageUrl });
-    log('Using imageUrl for image-to-image generation');
   } else if (params.imageUrls && params.imageUrls.length > 0) {
-    content.unshift({ image: params.imageUrls[0] });
-    log('Using first imageUrls for image-to-image generation');
+    content.unshift({ image: params.imageUrls });
   }
 
   const response = await fetch(endpoint, {
