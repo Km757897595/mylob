@@ -2289,12 +2289,12 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'z-image-turbo',
     organization: 'Qwen',
     parameters: {
-      height: { default: 1536, max: 2048, min: 512, step: 1 },
+      height: { default: 1536, max: 4096, min: 256, step: 1 },
       prompt: {
         default: '',
       },
       seed: { default: null },
-      width: { default: 1024, max: 2048, min: 512, step: 1 },
+      width: { default: 1024, max: 4096, min: 256, step: 1 },
     },
     pricing: {
       currency: 'CNY',
@@ -2311,6 +2311,7 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'qwen-image-edit-max',
     organization: 'Qwen',
     parameters: {
+      height: { default: 1536, max: 2048, min: 512, step: 1 },
       imageUrls: {
         default: [],
       },
@@ -2318,6 +2319,7 @@ const qwenImageModels: AIImageModelCard[] = [
         default: '',
       },
       seed: { default: null },
+      width: { default: 1024, max: 2048, min: 512, step: 1 },
     },
     pricing: {
       currency: 'CNY',
@@ -2334,6 +2336,7 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'qwen-image-edit-plus',
     organization: 'Qwen',
     parameters: {
+      height: { default: 1536, max: 2048, min: 512, step: 1 },
       imageUrls: {
         default: [],
       },
@@ -2341,6 +2344,7 @@ const qwenImageModels: AIImageModelCard[] = [
         default: '',
       },
       seed: { default: null },
+      width: { default: 1024, max: 2048, min: 512, step: 1 },
     },
     pricing: {
       currency: 'CNY',
@@ -2451,7 +2455,7 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'wan2.6-image',
     organization: 'Qwen',
     parameters: {
-      height: { default: 1280, max: 1280, min: 768, step: 1 },
+      height: { default: 1280, max: 2880, min: 640, step: 1 },
       imageUrls: {
         default: [],
       },
@@ -2459,7 +2463,7 @@ const qwenImageModels: AIImageModelCard[] = [
         default: '',
       },
       seed: { default: null },
-      width: { default: 1280, max: 1280, min: 768, step: 1 },
+      width: { default: 1280, max: 2880, min: 640, step: 1 },
     },
     pricing: {
       currency: 'CNY',
@@ -2476,12 +2480,12 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'wan2.6-t2i',
     organization: 'Qwen',
     parameters: {
-      height: { default: 1280, max: 1440, min: 1280, step: 1 },
+      height: { default: 1280, max: 2880, min: 640, step: 1 },
       prompt: {
         default: '',
       },
       seed: { default: null },
-      width: { default: 1280, max: 1440, min: 1280, step: 1 },
+      width: { default: 1280, max: 2880, min: 640, step: 1 },
     },
     pricing: {
       currency: 'CNY',
@@ -2496,7 +2500,7 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'wan2.5-i2i-preview',
     organization: 'Qwen',
     parameters: {
-      height: { default: 1280, max: 1280, min: 768, step: 1 },
+      height: { default: 1280, max: 2560, min: 384, step: 1 },
       imageUrls: {
         default: [],
       },
@@ -2504,7 +2508,7 @@ const qwenImageModels: AIImageModelCard[] = [
         default: '',
       },
       seed: { default: null },
-      width: { default: 1280, max: 1280, min: 768, step: 1 },
+      width: { default: 1280, max: 2560, min: 384, step: 1 },
     },
     pricing: {
       currency: 'CNY',
@@ -2520,12 +2524,12 @@ const qwenImageModels: AIImageModelCard[] = [
     id: 'wan2.5-t2i-preview',
     organization: 'Qwen',
     parameters: {
-      height: { default: 1280, max: 1440, min: 1280, step: 1 },
+      height: { default: 1280, max: 2880, min: 640, step: 1 },
       prompt: {
         default: '',
       },
       seed: { default: null },
-      width: { default: 1280, max: 1440, min: 1280, step: 1 },
+      width: { default: 1280, max: 2880, min: 640, step: 1 },
     },
     pricing: {
       currency: 'CNY',
