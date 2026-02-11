@@ -61,6 +61,7 @@ async function createQwenImageTask(
   payload: CreateImagePayload,
   apiKey: string,
   endpoint: 'text2image' | 'image2image',
+  provider: string,
 ): Promise<string> {
   const { model, params } = payload;
   const url = `https://dashscope.aliyuncs.com/api/v1/services/aigc/${endpoint}/image-synthesis`;
@@ -88,7 +89,11 @@ async function createQwenImageTask(
     }
 
     if (!images || images.length === 0) {
-      throw new Error('imageUrls or imageUrl is required for image-to-image models');
+      throw AgentRuntimeError.createImage({
+        error: new Error('imageUrls or imageUrl is required for image-to-image models'),
+        errorType: 'ProviderBizError',
+        provider,
+      });
     }
 
     input.images = images;
@@ -249,57 +254,11 @@ export async function createQwenImage(
   const { model } = payload;
 
   try {
-    if (image2ImageModels.has(model)) {
-      log('Using image2image API for model: %s', model);
+    if (text2ImageModels.has(model) || image2ImageModels.has(model)) {
+      const endpoint = image2ImageModels.has(model) ? 'image2image' : 'text2image';
+      log('Using %s API for model: %s', endpoint, model);
 
-      const taskId = await createQwenImageTask(payload, apiKey, 'image2image');
-
-      const result = await asyncifyPolling<QwenImageTaskResponse, CreateImageResponse>({
-        checkStatus: (taskStatus: QwenImageTaskResponse): TaskResult<CreateImageResponse> => {
-          log('Task %s status: %s', taskId, taskStatus.output.task_status);
-
-          if (taskStatus.output.task_status === 'SUCCEEDED') {
-            if (!taskStatus.output.results || taskStatus.output.results.length === 0) {
-              return {
-                error: new Error('Task succeeded but no images generated'),
-                status: 'failed',
-              };
-            }
-
-            const generatedImageUrl = taskStatus.output.results[0].url;
-            log('Image generated successfully: %s', generatedImageUrl);
-
-            return {
-              data: { imageUrl: generatedImageUrl },
-              status: 'success',
-            };
-          }
-
-          if (taskStatus.output.task_status === 'FAILED') {
-            const errorMessage =
-              taskStatus.output.error_message || 'Task failed without error message';
-            return {
-              error: new Error(`Image generation failed for model ${model}: ${errorMessage}`),
-              status: 'failed',
-            };
-          }
-
-          return { status: 'pending' };
-        },
-        logger: {
-          debug: (message: any, ...args: any[]) => log(message, ...args),
-          error: (message: any, ...args: any[]) => log(message, ...args),
-        },
-        pollingQuery: () => queryTaskStatus(taskId, apiKey),
-      });
-
-      return result;
-    }
-
-    if (text2ImageModels.has(model)) {
-      log('Using text2image API for model: %s', model);
-
-      const taskId = await createQwenImageTask(payload, apiKey, 'text2image');
+      const taskId = await createQwenImageTask(payload, apiKey, endpoint, provider);
 
       const result = await asyncifyPolling<QwenImageTaskResponse, CreateImageResponse>({
         checkStatus: (taskStatus: QwenImageTaskResponse): TaskResult<CreateImageResponse> => {
