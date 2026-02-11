@@ -18,7 +18,7 @@ const text2ImageModels = [
 
 const image2ImageModels = [/^wan2\.(2|5)-i2i-$/];
 
-const imageRequiredModels = [/^qwen-image-edit/, /^wan2\.(2|5)-i2i-$/];
+const imageRequiredModels = [/^qwen-image-edit/, /^wan2\.(2|5)-i2i-$/, /^wan2\.6-image/];
 
 // Helper function to check if model matches any pattern in the array
 function matchesModel(model: string, patterns: Array<string | RegExp>): boolean {
@@ -148,19 +148,22 @@ async function createMultimodalGeneration(
   const requiresImage = matchesModel(model, imageRequiredModels);
 
   if (requiresImage && !params.imageUrl && (!params.imageUrls || params.imageUrls.length === 0)) {
-      throw AgentRuntimeError.createImage({
-        error: new Error(`imageUrl or imageUrls is required for model ${model}`),
-        errorType: 'ProviderBizError',
-        provider: 'qwen',
-      });
-    }
+    throw AgentRuntimeError.createImage({
+      error: new Error(`imageUrl or imageUrls is required for model ${model}`),
+      errorType: 'ProviderBizError',
+      provider: 'qwen',
+    });
+  }
 
-  const content: Array<{ image: string | string[] } | { text: string }> = [{ text: params.prompt }];
+  const content: Array<{ image: string } | { text: string }> = [{ text: params.prompt }];
 
   if (params.imageUrl) {
     content.unshift({ image: params.imageUrl });
   } else if (params.imageUrls && params.imageUrls.length > 0) {
-    content.unshift({ image: params.imageUrls });
+    // Add each image as a separate object in the content array
+    for (const imageUrl of params.imageUrls.reverse()) {
+      content.unshift({ image: imageUrl });
+    }
   }
 
   const response = await fetch(endpoint, {
