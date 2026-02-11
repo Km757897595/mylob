@@ -658,6 +658,23 @@ describe('createQwenImage', () => {
       });
     });
 
+    it('should throw error when imageUrl is missing for qwen-image-edit', async () => {
+      const payload: CreateImagePayload = {
+        model: 'qwen-image-edit',
+        params: {
+          prompt: 'Edit this image',
+          // imageUrl is missing
+        },
+      };
+
+      await expect(createQwenImage(payload, mockOptions)).rejects.toEqual(
+        expect.objectContaining({
+          errorType: 'ProviderBizError',
+          provider: 'qwen',
+        }),
+      );
+    });
+
     it('should handle qwen-image-edit API errors', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,
@@ -684,131 +701,20 @@ describe('createQwenImage', () => {
       );
     });
 
-    it('should convert imageUrls array to imageUrl for qwen-image-edit', async () => {
-      const mockImageUrl =
-        'https://dashscope.oss-cn-beijing.aliyuncs.com/aigc/imageUrls-converted.jpg';
-
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          output: {
-            choices: [
-              {
-                message: {
-                  content: [{ image: mockImageUrl }],
-                },
-              },
-            ],
-          },
-          request_id: 'req-imageUrls-123',
-        }),
-      });
-
+    it('should throw error when imageUrl is not provided', async () => {
       const payload: CreateImagePayload = {
         model: 'qwen-image-edit',
         params: {
-          prompt: 'Edit this image to add a dog',
-          imageUrls: [
-            'https://example.com/source-image-1.jpg',
-            'https://example.com/source-image-2.jpg',
-          ],
+          prompt: 'Edit this image',
+          // imageUrl not provided
         },
       };
 
-      const result = await createQwenImage(payload, mockOptions);
-
-      expect(result).toEqual({
-        imageUrl: mockImageUrl,
-      });
-
-      const [url, options] = (fetch as any).mock.calls[0];
-      const body = JSON.parse(options.body);
-
-      // Verify that the first imageUrl from imageUrls array was used
-      expect(body.input.messages[0].content[0].image).toBe(
-        'https://example.com/source-image-1.jpg',
-      );
-    });
-
-    it('should use first imageUrl when imageUrls has multiple elements', async () => {
-      const mockImageUrl = 'https://dashscope.oss-cn-beijing.aliyuncs.com/aigc/first-element.jpg';
-
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          output: {
-            choices: [
-              {
-                message: {
-                  content: [{ image: mockImageUrl }],
-                },
-              },
-            ],
-          },
-          request_id: 'req-first-element',
+      await expect(createQwenImage(payload, mockOptions)).rejects.toEqual(
+        expect.objectContaining({
+          errorType: 'ProviderBizError',
+          provider: 'qwen',
         }),
-      });
-
-      const payload: CreateImagePayload = {
-        model: 'qwen-image-edit',
-        params: {
-          prompt: 'Use the first image only',
-          imageUrls: [
-            'https://example.com/first-image.jpg',
-            'https://example.com/second-image.jpg',
-            'https://example.com/third-image.jpg',
-          ],
-        },
-      };
-
-      await createQwenImage(payload, mockOptions);
-
-      const [url, options] = (fetch as any).mock.calls[0];
-      const body = JSON.parse(options.body);
-
-      // Should use only the first image from the array
-      expect(body.input.messages[0].content[0].image).toBe('https://example.com/first-image.jpg');
-    });
-
-    it('should prioritize imageUrl over imageUrls when both are provided', async () => {
-      const mockImageUrl = 'https://dashscope.oss-cn-beijing.aliyuncs.com/aigc/priority-test.jpg';
-
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          output: {
-            choices: [
-              {
-                message: {
-                  content: [{ image: mockImageUrl }],
-                },
-              },
-            ],
-          },
-          request_id: 'req-priority-test',
-        }),
-      });
-
-      const payload: CreateImagePayload = {
-        model: 'qwen-image-edit',
-        params: {
-          prompt: 'Test priority between imageUrl and imageUrls',
-          imageUrl: 'https://example.com/priority-image.jpg',
-          imageUrls: [
-            'https://example.com/should-not-use-1.jpg',
-            'https://example.com/should-not-use-2.jpg',
-          ],
-        },
-      };
-
-      await createQwenImage(payload, mockOptions);
-
-      const [url, options] = (fetch as any).mock.calls[0];
-      const body = JSON.parse(options.body);
-
-      // Should use imageUrl, not imageUrls
-      expect(body.input.messages[0].content[0].image).toBe(
-        'https://example.com/priority-image.jpg',
       );
     });
   });

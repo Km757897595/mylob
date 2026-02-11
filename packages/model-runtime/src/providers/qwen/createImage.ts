@@ -8,24 +8,24 @@ import { AgentRuntimeError } from '../../utils/createError';
 
 const log = createDebug('lobe-image:qwen');
 
-const text2ImageModels = new Set([
-  'wan2.5-t2i-preview',
-  'wan2.2-t2i-flash',
-  'wan2.2-t2i-plus',
-  'wanx2.1-t2i-turbo',
-  'wanx2.1-t2i-plus',
-  'wanx2.0-t2i-turbo',
-  'wanx-v1',
-  'stable-diffusion-xl',
-  'stable-diffusion-v1.5',
-  'stable-diffusion-3.5-large',
-  'stable-diffusion-3.5-large-turbo',
-  'flux-schnell',
-  'flux-dev',
-  'flux-merged',
-]);
+const text2ImageModels = [
+  /^wan2\.(2|5)-t2i-/,
+  /^wanx2\.(0|1)-t2i-/,
+  /^wanx-v1/,
+  /^stable-diffusion-/,
+  /^flux-/,
+];
 
-const image2ImageModels = new Set(['wan2.5-i2i-preview']);
+const image2ImageModels = [/^wan2\.(2|5)-i2i-$/];
+
+const imageRequiredModels = [/^qwen-image-edit/, /^wan2\.(2|5)-i2i-$/];
+
+// Helper function to check if model matches any pattern in the array
+function matchesModel(model: string, patterns: Array<string | RegExp>): boolean {
+  return patterns.some((pattern) =>
+    pattern instanceof RegExp ? pattern.test(model) : pattern === model,
+  );
+}
 
 interface QwenImageTaskResponse {
   output: {
@@ -144,6 +144,17 @@ async function createMultimodalGeneration(
   const endpoint = `https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`;
   log('Creating image with model: %s, endpoint: %s', model, endpoint);
 
+  // Check if this model requires an image
+  const requiresImage = matchesModel(model, imageRequiredModels);
+
+  if (requiresImage && !params.imageUrl && (!params.imageUrls || params.imageUrls.length === 0)) {
+      throw AgentRuntimeError.createImage({
+        error: new Error(`imageUrl or imageUrls is required for model ${model}`),
+        errorType: 'ProviderBizError',
+        provider: 'qwen',
+      });
+    }
+
   const content: Array<{ image: string | string[] } | { text: string }> = [{ text: params.prompt }];
 
   if (params.imageUrl) {
@@ -252,8 +263,11 @@ export async function createQwenImage(
   const { model } = payload;
 
   try {
-    if (text2ImageModels.has(model) || image2ImageModels.has(model)) {
-      const endpoint = image2ImageModels.has(model) ? 'image2image' : 'text2image';
+    const isText2Image = matchesModel(model, text2ImageModels);
+    const isImage2Image = matchesModel(model, image2ImageModels);
+
+    if (isText2Image || isImage2Image) {
+      const endpoint = isImage2Image ? 'image2image' : 'text2image';
       log('Using %s API for model: %s', endpoint, model);
 
       const taskId = await createQwenImageTask(payload, apiKey, endpoint, provider);
