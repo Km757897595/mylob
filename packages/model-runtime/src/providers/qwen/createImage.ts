@@ -1,8 +1,8 @@
 import createDebug from 'debug';
 
-import type { CreateImageOptions } from '../../core/openaiCompatibleFactory';
-import type { CreateImagePayload, CreateImageResponse } from '../../types/image';
-import type { TaskResult } from '../../utils/asyncifyPolling';
+import { type CreateImageOptions } from '../../core/openaiCompatibleFactory';
+import { type CreateImagePayload, type CreateImageResponse } from '../../types/image';
+import { type TaskResult } from '../../utils/asyncifyPolling';
 import { asyncifyPolling } from '../../utils/asyncifyPolling';
 import { AgentRuntimeError } from '../../utils/createError';
 
@@ -62,9 +62,10 @@ async function createQwenImageTask(
   apiKey: string,
   endpoint: 'text2image' | 'image2image',
   provider: string,
+  baseUrl: string,
 ): Promise<string> {
   const { model, params } = payload;
-  const url = `https://dashscope.aliyuncs.com/api/v1/services/aigc/${endpoint}/image-synthesis`;
+  const url = `${baseUrl}/api/v1/services/aigc/${endpoint}/image-synthesis`;
   log('Creating %s task with model: %s, endpoint: %s', endpoint, model, url);
 
   const input: Record<string, any> = {
@@ -139,9 +140,10 @@ async function createQwenImageTask(
 async function createMultimodalGeneration(
   payload: CreateImagePayload,
   apiKey: string,
+  baseUrl: string,
 ): Promise<CreateImageResponse> {
   const { model, params } = payload;
-  const endpoint = `https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation`;
+  const endpoint = `${baseUrl}/api/v1/services/aigc/multimodal-generation/generation`;
   log('Creating image with model: %s, endpoint: %s', model, endpoint);
 
   // Check if this model requires an image
@@ -225,8 +227,12 @@ async function createMultimodalGeneration(
 /**
  * Query the status of an image generation task
  */
-async function queryTaskStatus(taskId: string, apiKey: string): Promise<QwenImageTaskResponse> {
-  const endpoint = `https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`;
+async function queryTaskStatus(
+  taskId: string,
+  apiKey: string,
+  baseUrl: string,
+): Promise<QwenImageTaskResponse> {
+  const endpoint = `${baseUrl}/api/v1/tasks/${taskId}`;
 
   log('Querying task status for: %s', taskId);
 
@@ -262,8 +268,14 @@ export async function createQwenImage(
   payload: CreateImagePayload,
   options: CreateImageOptions,
 ): Promise<CreateImageResponse> {
-  const { apiKey, provider } = options;
+  const { apiKey, baseURL, provider } = options;
   const { model } = payload;
+
+  // Check if URL has /compatible-mode/v1 suffix and remove it
+  const suffixIndex = baseURL ? baseURL.indexOf('/compatible-mode/v1') : -1;
+  const dashscopeURL: string =
+    suffixIndex > -1 ? baseURL!.slice(0, suffixIndex) : 'https://dashscope.aliyuncs.com';
+  log('Using dashscopeURL: %s', dashscopeURL);
 
   try {
     const isText2Image = matchesModel(model, text2ImageModels);
@@ -273,7 +285,7 @@ export async function createQwenImage(
       const endpoint = isImage2Image ? 'image2image' : 'text2image';
       log('Using %s API for model: %s', endpoint, model);
 
-      const taskId = await createQwenImageTask(payload, apiKey, endpoint, provider);
+      const taskId = await createQwenImageTask(payload, apiKey, endpoint, provider, dashscopeURL);
 
       const result = await asyncifyPolling<QwenImageTaskResponse, CreateImageResponse>({
         checkStatus: (taskStatus: QwenImageTaskResponse): TaskResult<CreateImageResponse> => {
@@ -311,14 +323,14 @@ export async function createQwenImage(
           debug: (message: any, ...args: any[]) => log(message, ...args),
           error: (message: any, ...args: any[]) => log(message, ...args),
         },
-        pollingQuery: () => queryTaskStatus(taskId, apiKey),
+        pollingQuery: () => queryTaskStatus(taskId, apiKey, dashscopeURL),
       });
 
       return result;
     }
 
     log('Using multimodal-generation API for model: %s', model);
-    return await createMultimodalGeneration(payload, apiKey);
+    return await createMultimodalGeneration(payload, apiKey, dashscopeURL);
   } catch (error) {
     log('Error in createQwenImage: %O', error);
 
