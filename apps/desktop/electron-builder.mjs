@@ -200,6 +200,16 @@ const config = {
 
   dmg: {
     artifactName: '${productName}-${version}-${arch}.${ext}',
+    background: 'resources/dmg.png',
+    contents: [
+      { type: 'file', x: 150, y: 240 },
+      { type: 'link', path: '/Applications', x: 450, y: 240 },
+    ],
+    iconSize: 80,
+    window: {
+      height: 400,
+      width: 600,
+    },
   },
 
   electronDownload: {
@@ -212,6 +222,7 @@ const config = {
     // Ensure Next export assets are packaged
     'dist/next/**/*',
     '!resources/locales',
+    '!resources/dmg.png',
     '!dist/next/docs',
     '!dist/next/packages',
     '!dist/next/.next/server/app/sitemap',
