@@ -49,6 +49,8 @@ export default {
   'FileManager.emptyStatus.or': 'or',
   'FileManager.emptyStatus.title': 'Drag files or folders here',
   'FileManager.noFolders': 'No folders available',
+  'FileManager.search.noResults': 'No files found',
+  'FileManager.search.placeholder': 'Search files...',
   'FileManager.sort.dateAdded': 'Date Added',
   'FileManager.sort.name': 'Name',
   'FileManager.sort.size': 'Size',
