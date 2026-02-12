@@ -21,6 +21,7 @@ const ModelSwitchPanel = memo<ModelSwitchPanelProps>(
     open,
     placement = 'topLeft',
     provider: providerProp,
+    openOnHover = true,
   }) => {
     const [internalOpen, setInternalOpen] = useState(false);
     const isOpen = open ?? internalOpen;
@@ -35,9 +36,9 @@ const ModelSwitchPanel = memo<ModelSwitchPanelProps>(
 
     return (
       <DropdownMenuRoot open={isOpen} onOpenChange={handleOpenChange}>
-        <DropdownMenuTrigger openOnHover>{children}</DropdownMenuTrigger>
+        <DropdownMenuTrigger openOnHover={openOnHover}>{children}</DropdownMenuTrigger>
         <DropdownMenuPortal>
-          <DropdownMenuPositioner hoverTrigger placement={placement}>
+          <DropdownMenuPositioner hoverTrigger={openOnHover} placement={placement}>
             <DropdownMenuPopup className={styles.container}>
               <PanelContent
                 extraControls={extraControls}
