@@ -3,7 +3,7 @@ import { type ButtonProps } from '@lobehub/ui';
 import { Button, Center, Tooltip } from '@lobehub/ui';
 import { GroupBotSquareIcon } from '@lobehub/ui/icons';
 import { createStaticStyles, cssVar, cx } from 'antd-style';
-import { BotIcon, PenLineIcon } from 'lucide-react';
+import { BotIcon, PenLineIcon, VideoIcon } from 'lucide-react';
 import { memo, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -33,10 +33,12 @@ type StarterTitleKey =
   | 'starter.createAgent'
   | 'starter.createGroup'
   | 'starter.write'
+  | 'starter.seedance'
   | 'starter.deepResearch';
 
 interface StarterItem {
   disabled?: boolean;
+  hot?: boolean;
   icon?: ButtonProps['icon'];
   key: StarterMode;
   titleKey: StarterTitleKey;
@@ -49,9 +51,10 @@ const StarterList = memo(() => {
   useInitBuiltinAgent(BUILTIN_AGENT_SLUGS.groupAgentBuilder);
   useInitBuiltinAgent(BUILTIN_AGENT_SLUGS.pageAgent);
 
-  const [inputActiveMode, setInputActiveMode] = useHomeStore((s) => [
+  const [inputActiveMode, setInputActiveMode, navigate] = useHomeStore((s) => [
     s.inputActiveMode,
     s.setInputActiveMode,
+    s.navigate,
   ]);
 
   const items: StarterItem[] = useMemo(
@@ -71,6 +74,12 @@ const StarterList = memo(() => {
         key: 'write',
         titleKey: 'starter.write',
       },
+      {
+        hot: true,
+        icon: VideoIcon,
+        key: 'video',
+        titleKey: 'starter.seedance',
+      },
       // {
       //   disabled: true,
       //   icon: MicroscopeIcon,
@@ -83,6 +92,11 @@ const StarterList = memo(() => {
 
   const handleClick = useCallback(
     (key: StarterMode) => {
+      if (key === 'video') {
+        navigate?.('/video');
+        return;
+      }
+
       // Toggle mode: if clicking the active mode, clear it; otherwise set it
       if (inputActiveMode === key) {
         setInputActiveMode(null);
@@ -111,6 +125,7 @@ const StarterList = memo(() => {
             onClick={() => handleClick(item.key)}
           >
             {t(item.titleKey)}
+            {item.hot && ' 🔥'}
           </Button>
         );
 

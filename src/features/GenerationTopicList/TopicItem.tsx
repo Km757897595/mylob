@@ -9,9 +9,9 @@ import { useTranslation } from 'react-i18next';
 
 import { useGlobalStore } from '@/store/global';
 import { globalGeneralSelectors } from '@/store/global/selectors';
-import { useImageStore } from '@/store/image';
-import { generationTopicSelectors } from '@/store/image/slices/generationTopic/selectors';
 import { type ImageGenerationTopic } from '@/types/generation';
+
+import { useGenerationTopicContext } from './StoreContext';
 
 const formatTime = (date: Date, locale: string) => {
   return new Intl.DateTimeFormat(locale, {
@@ -27,15 +27,15 @@ interface TopicItemProps {
 }
 
 const TopicItem = memo<TopicItemProps>(({ topic, showMoreInfo, style }) => {
-  const { t } = useTranslation('image');
+  const { useStore, namespace } = useGenerationTopicContext();
+  const { t } = useTranslation(namespace);
   const { modal } = App.useApp();
   const locale = useGlobalStore(globalGeneralSelectors.currentLanguage);
 
-  // 检查当前 topic 是否在加载中
-  const isLoading = useImageStore(generationTopicSelectors.isLoadingGenerationTopic(topic.id));
-  const removeGenerationTopic = useImageStore((s) => s.removeGenerationTopic);
-  const switchGenerationTopic = useImageStore((s) => s.switchGenerationTopic);
-  const activeTopicId = useImageStore(generationTopicSelectors.activeGenerationTopicId);
+  const isLoading = useStore((s) => s.loadingGenerationTopicIds.includes(topic.id));
+  const removeGenerationTopic = useStore((s) => s.removeGenerationTopic);
+  const switchGenerationTopic = useStore((s) => s.switchGenerationTopic);
+  const activeTopicId = useStore((s) => s.activeGenerationTopicId);
 
   const isActive = activeTopicId === topic.id;
 

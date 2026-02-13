@@ -1,18 +1,23 @@
 'use client';
 
-import { Flexbox, Skeleton } from '@lobehub/ui';
+import { ActionIcon, Flexbox, Skeleton } from '@lobehub/ui';
+import { Plus } from 'lucide-react';
 import { memo } from 'react';
-
-import NewTopicButton from './NewTopicButton';
 
 const borderRadius = 6;
 
 const SkeletonList = memo(() => {
   return (
     <Flexbox align="center" gap={6} width={'100%'}>
-      <NewTopicButton />
+      <ActionIcon
+        icon={Plus}
+        size={{
+          blockSize: 48,
+          size: 20,
+        }}
+        variant={'filled'}
+      />
 
-      {/* Topic items skeleton */}
       {Array.from({ length: 5 }).map((_, index) => (
         <div key={index}>
           <Skeleton.Avatar

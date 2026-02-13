@@ -3,6 +3,7 @@ export enum AsyncTaskType {
   Embedding = 'embedding',
   ImageGeneration = 'image_generation',
   UserMemoryExtractionWithChatTopic = 'user_memory_extraction:chat_topic',
+  VideoGeneration = 'video_generation',
 }
 
 export enum AsyncTaskStatus {

@@ -18,12 +18,17 @@ export class GenerationTopicModel {
     this.fileService = new FileService(db, userId);
   }
 
-  queryAll = async () => {
+  queryAll = async (type?: string) => {
+    const conditions = [eq(generationTopics.userId, this.userId)];
+    if (type) {
+      conditions.push(eq(generationTopics.type, type));
+    }
+
     const topics = await this.db
       .select()
       .from(generationTopics)
       .orderBy(desc(generationTopics.updatedAt))
-      .where(eq(generationTopics.userId, this.userId));
+      .where(and(...conditions));
 
     return Promise.all(
       topics.map(async (topic) => {
@@ -38,11 +43,12 @@ export class GenerationTopicModel {
     );
   };
 
-  create = async (title: string) => {
+  create = async (title: string, type?: string) => {
     const [newGenerationTopic] = await this.db
       .insert(generationTopics)
       .values({
         title,
+        type: type ?? 'image',
         userId: this.userId,
       })
       .returning();

@@ -54,6 +54,12 @@ const Nav = memo(() => {
         url: '/page',
       },
       {
+        icon: getRouteById('video')!.icon,
+        key: SidebarTabKey.Video,
+        title: t('tab.video'),
+        url: '/video',
+      },
+      {
         hidden: !showAiImage,
         icon: getRouteById('image')!.icon,
         key: SidebarTabKey.Image,

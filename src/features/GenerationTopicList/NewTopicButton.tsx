@@ -5,6 +5,8 @@ import { Plus } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useGenerationTopicContext } from './StoreContext';
+
 interface NewTopicButtonProps {
   count?: number;
   onClick?: () => void;
@@ -12,7 +14,8 @@ interface NewTopicButtonProps {
 }
 
 const NewTopicButton = memo<NewTopicButtonProps>(({ count, onClick, showMoreInfo }) => {
-  const { t } = useTranslation('image');
+  const { namespace } = useGenerationTopicContext();
+  const { t } = useTranslation(namespace);
 
   if (showMoreInfo)
     return (

@@ -1,0 +1,23 @@
+{
+  "config.aspectRatio.label": "画面比例",
+  "config.cameraFixed.label": "固定镜头",
+  "config.duration.label": "时长",
+  "config.endImageUrl.label": "结束帧",
+  "config.generateAudio.label": "生成音频",
+  "config.header.title": "AI 视频",
+  "config.imageUrl.label": "起始帧",
+  "config.prompt.placeholder": "描述你想生成的视频",
+  "config.referenceImage.label": "参考图",
+  "config.resolution.label": "分辨率",
+  "config.seed.label": "种子",
+  "config.seed.random": "随机",
+  "generation.actions.generate": "生成",
+  "generation.validation.endFrameRequiresStartFrame": "不支持单独设置尾帧，请先设置起始帧",
+  "generation.status.generating": "生成中...",
+  "topic.createNew": "新建主题",
+  "topic.deleteConfirm": "删除视频主题",
+  "topic.deleteConfirmDesc": "确认删除该视频主题吗？删除后无法恢复",
+  "topic.empty": "暂无视频主题",
+  "topic.title": "视频主题",
+  "topic.untitled": "默认主题"
+}

@@ -132,6 +132,11 @@ export class GenerationBatchModel {
               config.imageUrl = await this.fileService.getFullFileUrl(config.imageUrl);
             }
 
+            // Handle endImageUrl (video start/end frame)
+            if (config.endImageUrl) {
+              config.endImageUrl = await this.fileService.getFullFileUrl(config.endImageUrl);
+            }
+
             // Handle imageUrls array
             if (Array.isArray(config.imageUrls)) {
               config.imageUrls = await Promise.all(
