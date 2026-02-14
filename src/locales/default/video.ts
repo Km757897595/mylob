@@ -25,7 +25,6 @@ export default {
   'topic.deleteConfirm': 'Delete Video Topic',
   'topic.deleteConfirmDesc':
     'You are about to delete this video topic. This action cannot be undone.',
-  'topic.empty': 'No video topics',
   'topic.title': 'Video Topics',
   'topic.untitled': 'Default Topic',
 } as const;
