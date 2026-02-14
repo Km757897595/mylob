@@ -79,7 +79,7 @@ const getPrice = (pricing: Pricing) => {
 
 // --- Pricing detail helpers ---
 
-type PricingGroup = 'audio' | 'image' | 'text';
+type PricingGroup = 'audio' | 'image' | 'text' | 'video';
 
 const UNIT_GROUP_MAP: Record<PricingUnitName, PricingGroup> = {
   audioInput: 'audio',
@@ -93,9 +93,10 @@ const UNIT_GROUP_MAP: Record<PricingUnitName, PricingGroup> = {
   textInput_cacheRead: 'text',
   textInput_cacheWrite: 'text',
   textOutput: 'text',
+  videoGeneration: 'video',
 };
 
-const GROUP_ORDER: PricingGroup[] = ['text', 'image', 'audio'];
+const GROUP_ORDER: PricingGroup[] = ['text', 'image', 'audio', 'video'];
 
 const UNIT_ICON_MAP: Partial<Record<PricingUnitName, LucideIcon>> = {
   audioInput: ArrowUpFromDot,
@@ -123,6 +124,7 @@ const UNIT_SORT_ORDER: Record<PricingUnitName, number> = {
   audioInput: 0,
   audioOutput: 1,
   audioInput_cacheRead: 2,
+  videoGeneration: 0,
 };
 
 const UNIT_LABEL_MAP: Record<string, string> = {
