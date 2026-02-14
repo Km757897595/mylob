@@ -1,6 +1,6 @@
 'use client';
 
-import { Flexbox } from '@lobehub/ui';
+import { Flexbox, Tag } from '@lobehub/ui';
 import { HomeIcon, SearchIcon } from 'lucide-react';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ import NavItem from '../../../../../../../features/NavPanel/components/NavItem';
 interface Item {
   hidden?: boolean | undefined;
   icon: NavItemProps['icon'];
+  isNew?: boolean;
   key: string;
   onClick?: () => void;
   title: NavItemProps['title'];
@@ -55,6 +56,7 @@ const Nav = memo(() => {
       },
       {
         icon: getRouteById('video')!.icon,
+        isNew: true,
         key: SidebarTabKey.Video,
         title: t('tab.video'),
         url: '/video',
@@ -77,12 +79,20 @@ const Nav = memo(() => {
     [t],
   );
 
+  const newBadge = (
+    <Tag color="blue" size="small">
+      {t('new')}
+    </Tag>
+  );
+
   return (
     <Flexbox gap={1} paddingInline={4}>
       {items.map((item) => {
+        const extra = item.isNew ? newBadge : undefined;
         const content = (
           <NavItem
             active={tab === item.key}
+            extra={extra}
             hidden={item.hidden}
             icon={item.icon}
             key={item.key}
@@ -106,6 +116,7 @@ const Nav = memo(() => {
           >
             <NavItem
               active={tab === item.key}
+              extra={extra}
               hidden={item.hidden}
               icon={item.icon}
               title={item.title}
