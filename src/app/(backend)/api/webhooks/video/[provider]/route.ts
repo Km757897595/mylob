@@ -154,7 +154,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
             topicId: batch?.generationTopicId,
           },
           model: resolvedModel,
-          prechargeResult: metadata?.precharge,
+          prechargeResult: metadata?.precharge as any,
           provider,
           userId: asyncTask.userId,
         });
@@ -208,7 +208,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
           topicId: batch?.generationTopicId,
         },
         model: resolvedModel,
-        prechargeResult: metadata?.precharge,
+        prechargeResult: metadata?.precharge as any,
         provider,
         usage: result.usage,
         userId: asyncTask.userId,
@@ -242,7 +242,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
           isError: true,
           metadata: { asyncTaskId: asyncTaskId ?? '', generationBatchId: '', modelId: '' },
           model: '',
-          prechargeResult: asyncTaskMetadata.precharge,
+          prechargeResult: asyncTaskMetadata.precharge as any,
           provider,
           userId: asyncTaskUserId,
         });
