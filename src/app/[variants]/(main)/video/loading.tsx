@@ -1,3 +1,5 @@
 import Loading from '@/components/Loading/BrandTextLoading';
 
-export default () => <Loading debugId="Video Page" />;
+const VideoLoading = () => <Loading debugId="Video Page" />;
+
+export default VideoLoading;

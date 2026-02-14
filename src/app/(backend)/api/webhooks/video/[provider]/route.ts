@@ -85,13 +85,11 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
     const metadata = asyncTask.metadata as VideoGenerationTaskMetadata | undefined;
     const expectedToken = metadata?.webhookToken;
 
-    if (expectedToken) {
-      if (!token || !safeCompare(token, expectedToken)) {
-        log('Webhook token verification failed for asyncTask: %s', asyncTask.id);
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-      log('Webhook token verified for asyncTask: %s', asyncTask.id);
+    if (!expectedToken || !token || !safeCompare(token, expectedToken)) {
+      log('Webhook token verification failed for asyncTask: %s', asyncTask.id);
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    log('Webhook token verified for asyncTask: %s', asyncTask.id);
 
     asyncTaskId = asyncTask.id;
     asyncTaskUserId = asyncTask.userId;

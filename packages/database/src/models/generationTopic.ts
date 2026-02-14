@@ -1,4 +1,8 @@
-import type { ImageGenerationTopic, VideoGenerationAsset } from '@lobechat/types';
+import type {
+  ImageGenerationAsset,
+  ImageGenerationTopic,
+  VideoGenerationAsset,
+} from '@lobechat/types';
 import { and, desc, eq } from 'drizzle-orm';
 
 import { FileService } from '@/server/services/file';
@@ -117,10 +121,12 @@ export class GenerationTopicModel {
     if (topicWithBatches.batches) {
       for (const batch of topicWithBatches.batches) {
         for (const gen of batch.generations) {
-          const asset = gen.asset as VideoGenerationAsset;
+          const asset = gen.asset as ImageGenerationAsset | VideoGenerationAsset | null;
           if (asset?.url) filesToDelete.push(asset.url);
           if (asset?.thumbnailUrl) filesToDelete.push(asset.thumbnailUrl);
-          if (asset?.coverUrl) filesToDelete.push(asset.coverUrl);
+          if (asset && 'coverUrl' in asset && asset.coverUrl) {
+            filesToDelete.push(asset.coverUrl);
+          }
         }
       }
     }

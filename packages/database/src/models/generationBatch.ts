@@ -2,6 +2,7 @@ import type {
   Generation,
   GenerationBatch,
   GenerationConfig,
+  ImageGenerationAsset,
   VideoGenerationAsset,
 } from '@lobechat/types';
 import debug from 'debug';
@@ -202,10 +203,12 @@ export class GenerationBatchModel {
     const filesToDelete: string[] = [];
     if (batchWithGenerations.generations) {
       for (const gen of batchWithGenerations.generations) {
-        const asset = gen.asset as VideoGenerationAsset;
+        const asset = gen.asset as ImageGenerationAsset | VideoGenerationAsset | null;
         if (asset?.url) filesToDelete.push(asset.url);
         if (asset?.thumbnailUrl) filesToDelete.push(asset.thumbnailUrl);
-        if (asset?.coverUrl) filesToDelete.push(asset.coverUrl);
+        if (asset && 'coverUrl' in asset && asset.coverUrl) {
+          filesToDelete.push(asset.coverUrl);
+        }
       }
     }
 

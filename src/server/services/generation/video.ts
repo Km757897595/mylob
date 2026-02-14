@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { createWriteStream, promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,7 +9,6 @@ import { promisify } from 'node:util';
 
 import { type LobeChatDatabase } from '@lobechat/database';
 import debug from 'debug';
-import { sha256 } from 'js-sha256';
 import { nanoid } from 'nanoid';
 import sharp from 'sharp';
 
@@ -71,7 +71,7 @@ export class VideoGenerationService {
 
       log('Video metadata: %O', metadata);
 
-      const fileHash = sha256(videoBuffer);
+      const fileHash = createHash('sha256').update(videoBuffer).digest('hex');
       const fileSize = videoBuffer.length;
 
       // Determine MIME type from URL or default to mp4
@@ -157,23 +157,55 @@ export class VideoGenerationService {
     }
   }
 
+  /** Max video file size: 500 MB */
+  private static MAX_VIDEO_SIZE = 500 * 1024 * 1024;
+  /** Download timeout: 5 minutes */
+  private static DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
   private async downloadVideo(url: string): Promise<string> {
     const ext = path.extname(new URL(url).pathname).toLowerCase() || '.mp4';
     const tempVideoPath = path.join(os.tmpdir(), `lobe-video-${nanoid()}${ext}`);
     log('Downloading video to: %s', tempVideoPath);
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(VideoGenerationService.DOWNLOAD_TIMEOUT_MS),
+    });
     if (!response.ok) {
       throw new Error(`Failed to download video: ${response.status} ${response.statusText}`);
+    }
+
+    // Check Content-Length header if available
+    const contentLength = Number(response.headers.get('content-length'));
+    if (contentLength && contentLength > VideoGenerationService.MAX_VIDEO_SIZE) {
+      throw new Error(
+        `Video file too large: ${contentLength} bytes (max ${VideoGenerationService.MAX_VIDEO_SIZE} bytes)`,
+      );
     }
 
     if (!response.body) {
       throw new Error(`Response body is empty for video URL: ${url}`);
     }
 
-    await pipeline(Readable.fromWeb(response.body as any), createWriteStream(tempVideoPath));
+    // Track downloaded size during streaming
+    let downloadedSize = 0;
+    const maxSize = VideoGenerationService.MAX_VIDEO_SIZE;
+    const sizeCheckTransform = new TransformStream({
+      transform(chunk, controller) {
+        downloadedSize += chunk.byteLength;
+        if (downloadedSize > maxSize) {
+          controller.error(
+            new Error(`Video file too large: exceeded ${maxSize} bytes during download`),
+          );
+          return;
+        }
+        controller.enqueue(chunk);
+      },
+    });
 
-    log('Video downloaded successfully');
+    const limitedBody = response.body.pipeThrough(sizeCheckTransform);
+    await pipeline(Readable.fromWeb(limitedBody as any), createWriteStream(tempVideoPath));
+
+    log('Video downloaded successfully (%d bytes)', downloadedSize);
     return tempVideoPath;
   }
 
@@ -226,10 +258,14 @@ export class VideoGenerationService {
     log('Generating screenshot from video');
 
     await execFileAsync(ffmpegPath, [
-      '-ss', '0.1',
-      '-i', videoPath,
-      '-frames:v', '1',
-      '-s', `${width}x${height}`,
+      '-ss',
+      '0.1',
+      '-i',
+      videoPath,
+      '-frames:v',
+      '1',
+      '-s',
+      `${width}x${height}`,
       '-y',
       outputPath,
     ]);
