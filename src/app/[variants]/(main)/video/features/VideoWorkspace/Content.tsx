@@ -6,6 +6,7 @@ import { generationBatchSelectors, videoGenerationTopicSelectors } from '@/store
 import GenerationFeed from '../GenerationFeed';
 import PromptInput from '../PromptInput';
 import EmptyState from './EmptyState';
+import SkeletonList from './SkeletonList';
 
 const VideoWorkspaceContent = () => {
   const activeTopicId = useVideoStore(videoGenerationTopicSelectors.activeGenerationTopicId);
@@ -18,7 +19,7 @@ const VideoWorkspaceContent = () => {
   const hasGenerations = currentBatches && currentBatches.length > 0;
 
   if (!isCurrentGenerationTopicLoaded) {
-    return <PromptInput disableAnimation={true} showTitle={false} />;
+    return <SkeletonList />;
   }
 
   if (!hasGenerations) return <EmptyState />;
