@@ -248,9 +248,11 @@ export const videoRouter = router({
     };
   }),
 
-  getVideoFreeQuota: authedProcedure.query(async ({ ctx }) => {
-    return getVideoFreeQuota(ctx.userId);
-  }),
+  getVideoFreeQuota: authedProcedure
+    .input(z.object({ model: z.string() }))
+    .query(async ({ ctx, input }) => {
+      return getVideoFreeQuota(ctx.userId, input.model);
+    }),
 });
 
 export type VideoRouter = typeof videoRouter;
