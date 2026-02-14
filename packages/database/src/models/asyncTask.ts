@@ -37,8 +37,8 @@ export class AsyncTaskModel {
     return this.db.query.asyncTasks.findFirst({ where: and(eq(asyncTasks.id, id)) });
   };
 
-  findByInferenceId = async (inferenceId: string) => {
-    return this.db.query.asyncTasks.findFirst({
+  static findByInferenceId = async (db: LobeChatDatabase, inferenceId: string) => {
+    return db.query.asyncTasks.findFirst({
       where: eq(asyncTasks.inferenceId, inferenceId),
     });
   };

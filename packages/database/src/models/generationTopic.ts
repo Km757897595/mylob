@@ -6,6 +6,7 @@ import { FileService } from '@/server/services/file';
 import type { GenerationTopicItem } from '../schemas/generation';
 import { generationTopics } from '../schemas/generation';
 import type { LobeChatDatabase } from '../type';
+import type { GenerationTopicType } from '../types/generation';
 
 export class GenerationTopicModel {
   private userId: string;
@@ -18,7 +19,7 @@ export class GenerationTopicModel {
     this.fileService = new FileService(db, userId);
   }
 
-  queryAll = async (type?: string) => {
+  queryAll = async (type?: GenerationTopicType) => {
     const conditions = [eq(generationTopics.userId, this.userId)];
     if (type) {
       conditions.push(eq(generationTopics.type, type));
@@ -43,7 +44,7 @@ export class GenerationTopicModel {
     );
   };
 
-  create = async (title: string, type?: string) => {
+  create = async (title: string, type?: GenerationTopicType) => {
     const [newGenerationTopic] = await this.db
       .insert(generationTopics)
       .values({

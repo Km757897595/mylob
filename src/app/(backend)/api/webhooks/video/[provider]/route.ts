@@ -57,10 +57,9 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
     log('Webhook parse result: %O', result);
 
     const db = await getServerDB();
-    asyncTaskModel = new AsyncTaskModel(db, '');
 
     // Find asyncTask by inferenceId
-    const asyncTask = await asyncTaskModel.findByInferenceId(result.inferenceId);
+    const asyncTask = await AsyncTaskModel.findByInferenceId(db, result.inferenceId);
     if (!asyncTask) {
       log('AsyncTask not found for inferenceId: %s', result.inferenceId);
       return NextResponse.json(
@@ -103,6 +102,15 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
 
     log('Found generation: %s', generation.id);
 
+    asyncTaskModel = new AsyncTaskModel(db, asyncTask.userId);
+
+    // Query batch to get model info for both error and success paths
+    const batch = await db.query.generationBatches.findFirst({
+      where: eq(generationBatches.id, generation.generationBatchId!),
+    });
+    const resolvedModel =
+      result.status === 'success' ? (result.model ?? batch?.model ?? '') : (batch?.model ?? '');
+
     // Handle error result: refund precharge and mark task as error
     if (result.status === 'error') {
       log('Video generation failed: %s', result.error);
@@ -117,10 +125,10 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
           metadata: {
             asyncTaskId: asyncTask.id,
             generationBatchId: generation.generationBatchId!,
-            modelId: '',
-            topicId: undefined,
+            modelId: resolvedModel,
+            topicId: batch?.generationTopicId,
           },
-          model: '',
+          model: resolvedModel,
           prechargeResult: (asyncTask.metadata as any)?.precharge,
           provider,
           userId: asyncTask.userId,
@@ -166,19 +174,15 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
 
     // Charge after successful video generation
     try {
-      const batch = await db.query.generationBatches.findFirst({
-        where: eq(generationBatches.id, generation.generationBatchId!),
-      });
-
       await chargeAfterGenerate({
         generateAudio: result.generateAudio,
         metadata: {
           asyncTaskId: asyncTask.id,
           generationBatchId: generation.generationBatchId!,
-          modelId: result.model ?? batch?.model ?? '',
+          modelId: resolvedModel,
           topicId: batch?.generationTopicId,
         },
-        model: result.model ?? batch?.model ?? '',
+        model: resolvedModel,
         prechargeResult: (asyncTask.metadata as any)?.precharge,
         provider,
         usage: result.usage,

@@ -181,7 +181,7 @@ export class GenerationBatchModel {
   ): Promise<{ deletedBatch: GenerationBatchItem; filesToDelete: string[] } | undefined> {
     log('Deleting generation batch: %s for user: %s', id, this.userId);
 
-    // 1. First, get generations with their assets to collect thumbnail URLs
+    // 1. First, get generations with their assets to collect file URLs for cleanup
     const batchWithGenerations = await this.db.query.generationBatches.findFirst({
       where: and(eq(generationBatches.id, id), eq(generationBatches.userId, this.userId)),
       with: {
