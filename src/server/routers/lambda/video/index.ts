@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
+import { getVideoFreeQuota } from '@/business/server/video-generation/getVideoFreeQuota';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import {
   asyncTasks,
@@ -237,6 +238,10 @@ export const videoRouter = router({
       },
       success: true,
     };
+  }),
+
+  getVideoFreeQuota: authedProcedure.query(async ({ ctx }) => {
+    return getVideoFreeQuota(ctx.userId);
   }),
 });
 

@@ -8,6 +8,7 @@ import type { KeyboardEvent } from 'react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import VideoFreeQuotaInfo from '@/business/client/features/VideoFreeQuotaInfo';
 import { loginRequired } from '@/components/Error/loginRequiredNotification';
 import { useIsDark } from '@/hooks/useIsDark';
 import { useQueryState } from '@/hooks/useQueryParam';
@@ -89,42 +90,45 @@ const PromptInput = ({ showTitle = false }: PromptInputProps) => {
   return (
     <Flexbox gap={32} width={'100%'}>
       {showTitle && <PromptTitle />}
-      <ChatInput
-        className={cx(styles.container, isDarkMode && styles.container_dark)}
-        styles={{ body: { padding: 8 } }}
-      >
-        <Flexbox align="flex-end" gap={12} height={'100%'} horizontal width={'100%'}>
-          <TextArea
-            autoSize={{ maxRows: 6, minRows: 3 }}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t('config.prompt.placeholder')}
-            style={{
-              borderRadius: 0,
-              padding: 0,
-            }}
-            value={value}
-            variant={'borderless'}
-          />
-          <Button
-            disabled={!value}
-            icon={Sparkles}
-            loading={isCreating}
-            onClick={handleGenerate}
-            size={'large'}
-            style={{
-              fontWeight: 500,
-              height: 64,
-              minWidth: 64,
-              width: 64,
-            }}
-            title={
-              isCreating ? t('generation.status.generating') : t('generation.actions.generate')
-            }
-            type={'primary'}
-          />
-        </Flexbox>
-      </ChatInput>
+      <Flexbox gap={8}>
+        <ChatInput
+          className={cx(styles.container, isDarkMode && styles.container_dark)}
+          styles={{ body: { padding: 8 } }}
+        >
+          <Flexbox horizontal align="flex-end" gap={12} height={'100%'} width={'100%'}>
+            <TextArea
+              autoSize={{ maxRows: 6, minRows: 3 }}
+              placeholder={t('config.prompt.placeholder')}
+              value={value}
+              variant={'borderless'}
+              style={{
+                borderRadius: 0,
+                padding: 0,
+              }}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <Button
+              disabled={!value}
+              icon={Sparkles}
+              loading={isCreating}
+              size={'large'}
+              type={'primary'}
+              style={{
+                fontWeight: 500,
+                height: 64,
+                minWidth: 64,
+                width: 64,
+              }}
+              title={
+                isCreating ? t('generation.status.generating') : t('generation.actions.generate')
+              }
+              onClick={handleGenerate}
+            />
+          </Flexbox>
+        </ChatInput>
+        <VideoFreeQuotaInfo />
+      </Flexbox>
     </Flexbox>
   );
 };

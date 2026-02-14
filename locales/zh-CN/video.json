@@ -15,6 +15,8 @@
   "generation.actions.errorCopied": "错误信息已复制到剪贴板",
   "generation.actions.errorCopyFailed": "复制遇到了问题。你可以再试一次",
   "generation.actions.generate": "生成",
+  "generation.freeQuota.exhausted": "🎁 今日免费次数已用完，将消耗积分",
+  "generation.freeQuota.remaining": "🎁 今日剩余 {{remaining}} 次免费",
   "generation.status.failed": "生成遇到了问题。你可以重试，或调整描述后再试",
   "generation.status.generating": "生成中...",
   "generation.validation.endFrameRequiresStartFrame": "不支持单独设置尾帧，请先设置起始帧",
