@@ -83,3 +83,8 @@ export interface UserMemoryExtractionMetadata {
   };
   source: 'chat_topic';
 }
+
+export interface VideoGenerationTaskMetadata {
+  precharge?: Record<string, unknown>;
+  webhookToken?: string;
+}

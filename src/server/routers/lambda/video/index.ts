@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import debug from 'debug';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -136,6 +138,9 @@ export const videoRouter = router({
     });
     if (errorBatch) return errorBatch;
 
+    // Generate a one-time token for webhook callback verification
+    const webhookToken = randomBytes(32).toString('hex');
+
     // Step 1: Atomically create all database records in a transaction
     const {
       batch: createdBatch,
@@ -170,7 +175,10 @@ export const videoRouter = router({
       const [asyncTask] = await tx
         .insert(asyncTasks)
         .values({
-          metadata: prechargeResult ? { precharge: prechargeResult } : {},
+          metadata: {
+            ...(prechargeResult ? { precharge: prechargeResult } : {}),
+            webhookToken,
+          },
           status: AsyncTaskStatus.Pending,
           type: AsyncTaskType.VideoGeneration,
           userId,
@@ -198,7 +206,7 @@ export const videoRouter = router({
       const modelRuntime = await initModelRuntimeFromDB(serverDB, userId, provider);
 
       const callbackBaseUrl = process.env.WEBHOOK_PROXY_URL || appEnv.APP_URL;
-      const callbackUrl = `${callbackBaseUrl}/api/webhooks/video/${provider}`;
+      const callbackUrl = `${callbackBaseUrl}/api/webhooks/video/${provider}?token=${webhookToken}`;
       log('Using callback URL: %s', callbackUrl);
 
       const response = await modelRuntime.createVideo({

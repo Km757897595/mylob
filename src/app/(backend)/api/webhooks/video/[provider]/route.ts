@@ -1,3 +1,5 @@
+import { timingSafeEqual } from 'node:crypto';
+
 import { ModelRuntime } from '@lobechat/model-runtime';
 import {
   AsyncTaskError,
@@ -5,6 +7,7 @@ import {
   AsyncTaskStatus,
   FileSource,
   type VideoGenerationAsset,
+  type VideoGenerationTaskMetadata,
 } from '@lobechat/types';
 import debug from 'debug';
 import { eq } from 'drizzle-orm';
@@ -18,6 +21,14 @@ import { getServerDB } from '@/database/server';
 import { VideoGenerationService } from '@/server/services/generation/video';
 
 const log = debug('lobe-video:webhook');
+
+/** Constant-time string comparison that handles different lengths safely */
+const safeCompare = (a: string, b: string): boolean => {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+};
 
 export const POST = async (req: Request, { params }: { params: Promise<{ provider: string }> }) => {
   const { provider } = await params;
@@ -34,7 +45,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
   let asyncTaskModel: AsyncTaskModel | undefined;
   let asyncTaskId: string | undefined;
   let asyncTaskUserId: string | undefined;
-  let asyncTaskMetadata: any;
+  let asyncTaskMetadata: VideoGenerationTaskMetadata | undefined;
 
   try {
     // Parse webhook body using provider-specific handler
@@ -68,9 +79,23 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
       );
     }
 
+    // Verify webhook token to prevent forged callbacks
+    const url = new URL(req.url);
+    const token = url.searchParams.get('token');
+    const metadata = asyncTask.metadata as VideoGenerationTaskMetadata | undefined;
+    const expectedToken = metadata?.webhookToken;
+
+    if (expectedToken) {
+      if (!token || !safeCompare(token, expectedToken)) {
+        log('Webhook token verification failed for asyncTask: %s', asyncTask.id);
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      log('Webhook token verified for asyncTask: %s', asyncTask.id);
+    }
+
     asyncTaskId = asyncTask.id;
     asyncTaskUserId = asyncTask.userId;
-    asyncTaskMetadata = asyncTask.metadata;
+    asyncTaskMetadata = metadata;
 
     log(
       'Found asyncTask: %s, userId: %s, status: %s',
@@ -129,7 +154,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
             topicId: batch?.generationTopicId,
           },
           model: resolvedModel,
-          prechargeResult: (asyncTask.metadata as any)?.precharge,
+          prechargeResult: metadata?.precharge,
           provider,
           userId: asyncTask.userId,
         });
@@ -183,7 +208,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
           topicId: batch?.generationTopicId,
         },
         model: resolvedModel,
-        prechargeResult: (asyncTask.metadata as any)?.precharge,
+        prechargeResult: metadata?.precharge,
         provider,
         usage: result.usage,
         userId: asyncTask.userId,
