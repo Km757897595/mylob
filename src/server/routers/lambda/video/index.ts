@@ -4,6 +4,7 @@ import debug from 'debug';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
+import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
 import { chargeBeforeGenerate } from '@/business/server/video-generation/chargeBeforeGenerate';
 import { getVideoFreeQuota } from '@/business/server/video-generation/getVideoFreeQuota';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
@@ -232,6 +233,26 @@ export const videoRouter = router({
         ),
         status: AsyncTaskStatus.Error,
       });
+
+      if (prechargeResult) {
+        try {
+          await chargeAfterGenerate({
+            isError: true,
+            metadata: {
+              asyncTaskId,
+              generationBatchId: createdBatch.id,
+              modelId: model,
+              topicId: generationTopicId,
+            },
+            model,
+            prechargeResult,
+            provider,
+            userId,
+          });
+        } catch (chargeError) {
+          console.error('[video] chargeAfterGenerate failed:', chargeError);
+        }
+      }
     }
 
     log('Video creation process completed: %O', {
