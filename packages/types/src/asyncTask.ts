@@ -3,6 +3,7 @@ export enum AsyncTaskType {
   Embedding = 'embedding',
   ImageGeneration = 'image_generation',
   UserMemoryExtractionWithChatTopic = 'user_memory_extraction:chat_topic',
+  VideoGeneration = 'video_generation',
 }
 
 export enum AsyncTaskStatus {
@@ -81,4 +82,9 @@ export interface UserMemoryExtractionMetadata {
     to?: string;
   };
   source: 'chat_topic';
+}
+
+export interface VideoGenerationTaskMetadata {
+  precharge?: Record<string, unknown>;
+  webhookToken?: string;
 }
