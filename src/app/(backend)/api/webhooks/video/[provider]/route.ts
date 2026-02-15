@@ -11,6 +11,7 @@ import {
 } from '@lobechat/types';
 import debug from 'debug';
 import { eq } from 'drizzle-orm';
+import { type RuntimeVideoGenParams } from 'model-bank';
 import { NextResponse } from 'next/server';
 
 import { chargeAfterGenerate } from '@/business/server/video-generation/chargeAfterGenerate';
@@ -198,7 +199,9 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
     // Charge after successful video generation
     try {
       await chargeAfterGenerate({
-        generateAudio: result.generateAudio,
+        computePriceParams: {
+          generateAudio: (batch?.config as RuntimeVideoGenParams)?.generateAudio,
+        },
         latency: Date.now() - asyncTask.createdAt.getTime(),
         metadata: {
           asyncTaskId: asyncTask.id,
