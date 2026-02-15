@@ -162,6 +162,11 @@
       "count": 1
     }
   },
+  "src/app/[variants]/(main)/image/_layout/TopicSidebar.tsx": {
+    "simple-import-sort/imports": {
+      "count": 1
+    }
+  },
   "src/app/[variants]/(main)/image/features/GenerationFeed/index.tsx": {
     "object-shorthand": {
       "count": 1
@@ -216,6 +221,16 @@
     }
   },
   "src/app/[variants]/(main)/settings/stats/features/usage/UsageCards/ActiveModels/ModelTable.tsx": {
+    "object-shorthand": {
+      "count": 1
+    }
+  },
+  "src/app/[variants]/(main)/video/_layout/TopicSidebar.tsx": {
+    "simple-import-sort/imports": {
+      "count": 1
+    }
+  },
+  "src/app/[variants]/(main)/video/features/GenerationFeed/index.tsx": {
     "object-shorthand": {
       "count": 1
     }
@@ -418,6 +433,11 @@
       "count": 1
     }
   },
+  "src/features/GenerationTopicPanel/index.tsx": {
+    "simple-import-sort/imports": {
+      "count": 1
+    }
+  },
   "src/features/LibraryModal/CreateNew/CreateForm.tsx": {
     "unused-imports/no-unused-imports": {
       "count": 1
@@ -435,11 +455,6 @@
   },
   "src/features/MCPPluginDetail/Header.tsx": {
     "simple-import-sort/imports": {
-      "count": 1
-    }
-  },
-  "src/features/NavPanel/SideBarHeaderLayout.tsx": {
-    "@eslint-react/dom/no-flush-sync": {
       "count": 1
     }
   },
@@ -527,6 +542,11 @@
   "src/hooks/useAgentOwnershipCheck.ts": {
     "no-console": {
       "count": 6
+    }
+  },
+  "src/hooks/useFetchAiVideoConfig.ts": {
+    "simple-import-sort/imports": {
+      "count": 1
     }
   },
   "src/hooks/useHotkeys/useHotkeyById.ts": {
@@ -640,6 +660,9 @@
   "src/server/modules/S3/index.ts": {
     "object-shorthand": {
       "count": 3
+    },
+    "simple-import-sort/imports": {
+      "count": 1
     }
   },
   "src/server/routers/async/image.ts": {
@@ -705,17 +728,6 @@
   "src/server/routers/lambda/user.ts": {
     "sort-keys-fix/sort-keys-fix": {
       "count": 2
-    }
-  },
-  "src/server/routers/lambda/userMemory.ts": {
-    "@typescript-eslint/consistent-type-imports": {
-      "count": 1
-    },
-    "import-x/no-duplicates": {
-      "count": 2
-    },
-    "simple-import-sort/imports": {
-      "count": 1
     }
   },
   "src/server/routers/tools/_helpers/scheduleToolCallReport.test.ts": {
@@ -923,11 +935,6 @@
   },
   "src/services/chat/index.ts": {
     "object-shorthand": {
-      "count": 1
-    }
-  },
-  "src/services/chat/mecha/contextEngineering.ts": {
-    "sort-keys-fix/sort-keys-fix": {
       "count": 1
     }
   },
@@ -1325,6 +1332,16 @@
   },
   "src/store/userMemory/slices/home/action.ts": {
     "no-unused-private-class-members": {
+      "count": 1
+    }
+  },
+  "src/store/video/initialState.ts": {
+    "simple-import-sort/imports": {
+      "count": 1
+    }
+  },
+  "src/store/video/store.ts": {
+    "simple-import-sort/imports": {
       "count": 1
     }
   },
