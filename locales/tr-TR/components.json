@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "veya",
   "FileManager.emptyStatus.title": "Dosya veya klasörleri buraya sürükleyin",
   "FileManager.noFolders": "Klasör bulunamadı",
+  "FileManager.search.noResults": "Dosya bulunamadı",
+  "FileManager.search.placeholder": "Dosyalarda ara...",
   "FileManager.sort.dateAdded": "Eklenme Tarihi",
   "FileManager.sort.name": "Ad",
   "FileManager.sort.size": "Boyut",

@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "또는",
   "FileManager.emptyStatus.title": "파일이나 폴더를 이곳에 끌어다 놓으세요",
   "FileManager.noFolders": "폴더가 없습니다",
+  "FileManager.search.noResults": "파일을 찾을 수 없습니다",
+  "FileManager.search.placeholder": "파일 검색...",
   "FileManager.sort.dateAdded": "추가 날짜",
   "FileManager.sort.name": "이름",
   "FileManager.sort.size": "크기",

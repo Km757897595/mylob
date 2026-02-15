@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "или",
   "FileManager.emptyStatus.title": "Перетащите файлы или папки сюда",
   "FileManager.noFolders": "Нет доступных папок",
+  "FileManager.search.noResults": "Файлы не найдены",
+  "FileManager.search.placeholder": "Поиск файлов...",
   "FileManager.sort.dateAdded": "Дата добавления",
   "FileManager.sort.name": "Имя",
   "FileManager.sort.size": "Размер",

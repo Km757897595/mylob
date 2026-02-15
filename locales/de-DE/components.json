@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "oder",
   "FileManager.emptyStatus.title": "Dateien oder Ordner hierher ziehen",
   "FileManager.noFolders": "Keine Ordner verfügbar",
+  "FileManager.search.noResults": "Keine Dateien gefunden",
+  "FileManager.search.placeholder": "Dateien durchsuchen...",
   "FileManager.sort.dateAdded": "Hinzugefügt am",
   "FileManager.sort.name": "Name",
   "FileManager.sort.size": "Größe",

@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "یا",
   "FileManager.emptyStatus.title": "فایل‌ها یا پوشه‌ها را اینجا بکشید",
   "FileManager.noFolders": "پوشه‌ای موجود نیست",
+  "FileManager.search.noResults": "هیچ فایلی پیدا نشد",
+  "FileManager.search.placeholder": "جستجوی فایل‌ها...",
   "FileManager.sort.dateAdded": "تاریخ افزودن",
   "FileManager.sort.name": "نام",
   "FileManager.sort.size": "اندازه",

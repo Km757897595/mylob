@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "或者",
   "FileManager.emptyStatus.title": "將文件或文件夾拖到這裡",
   "FileManager.noFolders": "暫無資料夾",
+  "FileManager.search.noResults": "未找到檔案",
+  "FileManager.search.placeholder": "搜尋檔案...",
   "FileManager.sort.dateAdded": "新增日期",
   "FileManager.sort.name": "名稱",
   "FileManager.sort.size": "大小",

@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "of",
   "FileManager.emptyStatus.title": "Sleep bestanden of mappen hierheen",
   "FileManager.noFolders": "Geen mappen beschikbaar",
+  "FileManager.search.noResults": "Geen bestanden gevonden",
+  "FileManager.search.placeholder": "Bestanden zoeken...",
   "FileManager.sort.dateAdded": "Datum toegevoegd",
   "FileManager.sort.name": "Naam",
   "FileManager.sort.size": "Grootte",
