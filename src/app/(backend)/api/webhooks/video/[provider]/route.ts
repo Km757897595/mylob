@@ -185,7 +185,10 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
       {
         fileHash: processResult.fileHash,
         fileType: processResult.mimeType,
-        name: `${batch?.prompt.slice(0, 50) ?? generation.id}.mp4`,
+        name: `${(batch?.prompt ?? generation.id)
+          .replaceAll(/[^\w\u4E00-\u9FFF -]/g, '_')
+          .trim()
+          .slice(0, 50)}.mp4`,
         size: processResult.fileSize,
         url: processResult.videoKey,
       },
