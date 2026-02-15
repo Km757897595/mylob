@@ -20,6 +20,7 @@ import { GenerationModel } from '@/database/models/generation';
 import { generationBatches } from '@/database/schemas';
 import { getServerDB } from '@/database/server';
 import { VideoGenerationService } from '@/server/services/generation/video';
+import { sanitizeFileName } from '@/utils/sanitizeFileName';
 
 const log = debug('lobe-video:webhook');
 
@@ -185,10 +186,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
       {
         fileHash: processResult.fileHash,
         fileType: processResult.mimeType,
-        name: `${(batch?.prompt ?? generation.id)
-          .replaceAll(/[^\w\u4E00-\u9FFF -]/g, '_')
-          .trim()
-          .slice(0, 50)}.mp4`,
+        name: `${sanitizeFileName(batch?.prompt ?? '', generation.id)}.mp4`,
         size: processResult.fileSize,
         url: processResult.videoKey,
       },
