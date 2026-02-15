@@ -55,10 +55,8 @@ export default eslint(
   {
     rules: {
       '@next/next/no-img-element': 0,
-      '@typescript-eslint/consistent-type-imports': 0,
       '@typescript-eslint/no-use-before-define': 0,
       '@typescript-eslint/no-useless-constructor': 0,
-      'import-x/consistent-type-specifier-style': 0,
       'no-extra-boolean-cast': 0,
       'react/no-unknown-property': 0,
       'regexp/match-any': 0,
