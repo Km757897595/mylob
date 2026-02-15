@@ -199,6 +199,7 @@ export const POST = async (req: Request, { params }: { params: Promise<{ provide
     try {
       await chargeAfterGenerate({
         generateAudio: result.generateAudio,
+        latency: Date.now() - asyncTask.createdAt.getTime(),
         metadata: {
           asyncTaskId: asyncTask.id,
           generationBatchId: generation.generationBatchId!,
