@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "oppure",
   "FileManager.emptyStatus.title": "Trascina qui file o cartelle",
   "FileManager.noFolders": "Nessuna cartella disponibile",
+  "FileManager.search.noResults": "Nessun file trovato",
+  "FileManager.search.placeholder": "Cerca file...",
   "FileManager.sort.dateAdded": "Data di Aggiunta",
   "FileManager.sort.name": "Nome",
   "FileManager.sort.size": "Dimensione",

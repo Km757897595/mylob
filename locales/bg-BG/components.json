@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "или",
   "FileManager.emptyStatus.title": "Плъзнете файлове или папки тук",
   "FileManager.noFolders": "Няма налични папки",
+  "FileManager.search.noResults": "Няма намерени файлове",
+  "FileManager.search.placeholder": "Търсене на файлове...",
   "FileManager.sort.dateAdded": "Дата на добавяне",
   "FileManager.sort.name": "Име",
   "FileManager.sort.size": "Размер",

@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "または",
   "FileManager.emptyStatus.title": "ここにファイルまたはフォルダーをドラッグしてください",
   "FileManager.noFolders": "フォルダがありません",
+  "FileManager.search.noResults": "ファイルが見つかりませんでした",
+  "FileManager.search.placeholder": "ファイルを検索...",
   "FileManager.sort.dateAdded": "追加日",
   "FileManager.sort.name": "名前",
   "FileManager.sort.size": "サイズ",

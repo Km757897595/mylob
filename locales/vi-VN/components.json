@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "hoặc",
   "FileManager.emptyStatus.title": "Kéo tệp hoặc thư mục vào đây",
   "FileManager.noFolders": "Không có thư mục nào",
+  "FileManager.search.noResults": "Không tìm thấy tệp nào",
+  "FileManager.search.placeholder": "Tìm kiếm tệp...",
   "FileManager.sort.dateAdded": "Ngày thêm",
   "FileManager.sort.name": "Tên",
   "FileManager.sort.size": "Kích thước",

@@ -43,6 +43,8 @@
   "FileManager.emptyStatus.or": "ou",
   "FileManager.emptyStatus.title": "Arraste arquivos ou pastas aqui",
   "FileManager.noFolders": "Nenhuma pasta disponível",
+  "FileManager.search.noResults": "Nenhum arquivo encontrado",
+  "FileManager.search.placeholder": "Buscar arquivos...",
   "FileManager.sort.dateAdded": "Data de Adição",
   "FileManager.sort.name": "Nome",
   "FileManager.sort.size": "Tamanho",
