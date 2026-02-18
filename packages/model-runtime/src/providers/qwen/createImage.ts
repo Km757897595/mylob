@@ -16,9 +16,9 @@ const text2ImageModels = [
   /^flux-/,
 ];
 
-const image2ImageModels = [/^wan2\.(2|5)-i2i-$/];
+const image2ImageModels = [/^wan2\.(2|5)-i2i-/];
 
-const imageRequiredModels = [/^qwen-image-edit/, /^wan2\.(2|5)-i2i-$/, /^wan2\.6-image/];
+const imageRequiredModels = [/^qwen-image-edit/, /^wan2\.(2|5)-i2i-/, /^wan2\.6-image/];
 
 // Helper function to check if model matches any pattern in the array
 function matchesModel(model: string, patterns: Array<string | RegExp>): boolean {
@@ -163,7 +163,7 @@ async function createMultimodalGeneration(
     content.unshift({ image: params.imageUrl });
   } else if (params.imageUrls && params.imageUrls.length > 0) {
     // Add each image as a separate object in the content array
-    for (const imageUrl of params.imageUrls.reverse()) {
+    for (const imageUrl of params.imageUrls) {
       content.unshift({ image: imageUrl });
     }
   }
@@ -274,7 +274,7 @@ export async function createQwenImage(
   // Check if URL has /compatible-mode/v1 suffix and remove it
   const suffixIndex = baseURL ? baseURL.indexOf('/compatible-mode/v1') : -1;
   const dashscopeURL: string =
-    suffixIndex > -1 ? baseURL!.slice(0, suffixIndex) : 'https://dashscope.aliyuncs.com';
+    suffixIndex > -1 ? baseURL!.slice(0, suffixIndex) : baseURL || 'https://dashscope.aliyuncs.com';
   log('Using dashscopeURL: %s', dashscopeURL);
 
   try {
