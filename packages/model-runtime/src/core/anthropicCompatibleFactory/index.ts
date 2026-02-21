@@ -28,7 +28,7 @@ import {
 } from '../contextBuilders/anthropic';
 import { resolveParameters } from '../parameterResolver';
 import { AnthropicStream } from '../streams';
-import type { ComputeChatCostOptions } from '../usageConverters/utils/computeChatCost';
+import { type ComputeChatCostOptions } from '../usageConverters/utils/computeChatCost';
 import { createAnthropicGenerateObject } from './generateObject';
 import { handleAnthropicError } from './handleAnthropicError';
 import { resolveCacheTTL } from './resolveCacheTTL';
@@ -176,8 +176,8 @@ export const buildDefaultAnthropicPayload = async (
       max_tokens: resolvedMaxTokens,
       messages: postMessages,
       model,
+      ...(effort ? { output_config: { effort } } : {}),
       system: systemPrompts,
-      ...(thinking.type === 'adaptive' && effort ? { output_config: { effort } } : {}),
       thinking: resolvedThinking,
       tools: postTools as Anthropic.MessageCreateParams['tools'],
     } as Anthropic.MessageCreateParams;
@@ -189,7 +189,8 @@ export const buildDefaultAnthropicPayload = async (
     { hasConflict, normalizeTemperature: true, preferTemperature: true },
   );
 
-  return {
+  // Support effort parameter even without thinking (per Claude 4.6 guidance)
+  const basePayload: Anthropic.MessageCreateParams = {
     max_tokens: resolvedMaxTokens,
     messages: postMessages,
     model,
@@ -197,7 +198,17 @@ export const buildDefaultAnthropicPayload = async (
     temperature: resolvedParams.temperature,
     tools: postTools as Anthropic.MessageCreateParams['tools'],
     top_p: resolvedParams.top_p,
-  } satisfies Anthropic.MessageCreateParams;
+  };
+
+  // If effort is specified without thinking mode, add output_config
+  if (effort) {
+    return {
+      ...basePayload,
+      output_config: { effort },
+    } as Anthropic.MessageCreateParams;
+  }
+
+  return basePayload;
 };
 
 /**
