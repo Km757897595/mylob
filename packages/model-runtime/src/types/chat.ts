@@ -7,13 +7,13 @@ export type LLMRoleType = 'user' | 'system' | 'assistant' | 'function' | 'tool';
 export type ChatResponseFormat =
   | { type: 'json_object' }
   | {
-    json_schema: {
-      name: string;
-      schema: Record<string, any>;
-      strict?: boolean;
+      json_schema: {
+        name: string;
+        schema: Record<string, any>;
+        strict?: boolean;
+      };
+      type: 'json_schema';
     };
-    type: 'json_schema';
-  };
 
 interface UserMessageContentPartThinking {
   signature: string;
@@ -216,6 +216,7 @@ export interface ChatCompletionTool {
 }
 
 export interface OnFinishData {
+  error?: any;
   grounding?: any;
   speed?: ModelPerformance;
   text: string;
@@ -265,6 +266,8 @@ export interface ChatStreamCallbacks {
    * Used for models that return structured content with mixed text and images.
    */
   onContentPart?: (data: ContentPartData) => Promise<void> | void;
+  /** `onError`: Called when a stream error event is received from the provider. */
+  onError?: (error: any) => Promise<void> | void;
   /**
    * `onFinal`: Called once when the stream is closed with the final completion message.
    **/

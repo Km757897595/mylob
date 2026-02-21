@@ -473,6 +473,7 @@ export default {
   'tab.chat': 'Chat',
   'tab.community': 'Community',
   'tab.discover': 'Discover',
+  'tab.eval': 'Eval Lab',
   'tab.files': 'Files',
   'tab.home': 'Home',
   'tab.knowledgeBase': 'Library',
