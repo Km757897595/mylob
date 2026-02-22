@@ -1,15 +1,16 @@
 'use client';
 
-import { type KlavisServerType, type LobehubSkillProviderType } from '@lobechat/const';
 import {
   getKlavisServerByServerIdentifier,
   getLobehubSkillProviderById,
   KLAVIS_SERVER_TYPES,
+  type KlavisServerType,
   LOBEHUB_SKILL_PROVIDERS,
+  type LobehubSkillProviderType,
   RECOMMENDED_SKILLS,
   RecommendedSkillType,
 } from '@lobechat/const';
-import { type LobeBuiltinTool } from '@lobechat/types';
+import { type BuiltinSkill, type LobeBuiltinTool } from '@lobechat/types';
 import { Center, Empty } from '@lobehub/ui';
 import { Divider } from 'antd';
 import { createStaticStyles } from 'antd-style';
@@ -23,6 +24,7 @@ import { useFetchInstalledPlugins } from '@/hooks/useFetchInstalledPlugins';
 import { serverConfigSelectors, useServerConfigStore } from '@/store/serverConfig';
 import { useToolStore } from '@/store/tool';
 import {
+  agentSkillsSelectors,
   builtinToolSelectors,
   klavisStoreSelectors,
   lobehubSkillStoreSelectors,
@@ -32,6 +34,7 @@ import { KlavisServerStatus } from '@/store/tool/slices/klavisStore';
 import { LobehubSkillStatus } from '@/store/tool/slices/lobehubSkillStore/types';
 import { type LobeToolType } from '@/types/tool/tool';
 
+import AgentSkillItem from './AgentSkillItem';
 import BuiltinSkillItem from './BuiltinSkillItem';
 import KlavisSkillItem from './KlavisSkillItem';
 import LobehubSkillItem from './LobehubSkillItem';
@@ -62,6 +65,9 @@ const SkillList = memo(() => {
   const allLobehubSkillServers = useToolStore(lobehubSkillStoreSelectors.getServers, isEqual);
   const allKlavisServers = useToolStore(klavisStoreSelectors.getServers, isEqual);
   const installedPluginList = useToolStore(pluginSelectors.installedPluginMetaList, isEqual);
+  const marketAgentSkills = useToolStore(agentSkillsSelectors.getMarketAgentSkills, isEqual);
+  const userAgentSkills = useToolStore(agentSkillsSelectors.getUserAgentSkills, isEqual);
+  const builtinSkills = useToolStore((s) => s.builtinSkills, isEqual);
   const allBuiltinTools = useToolStore((s) => s.builtinTools, isEqual);
   const uninstalledBuiltinTools = useToolStore(
     builtinToolSelectors.uninstalledBuiltinTools,
@@ -71,16 +77,19 @@ const SkillList = memo(() => {
   const [
     useFetchLobehubSkillConnections,
     useFetchUserKlavisServers,
+    useFetchAgentSkills,
     useFetchUninstalledBuiltinTools,
   ] = useToolStore((s) => [
     s.useFetchLobehubSkillConnections,
     s.useFetchUserKlavisServers,
+    s.useFetchAgentSkills,
     s.useFetchUninstalledBuiltinTools,
   ]);
 
   useFetchInstalledPlugins();
   useFetchLobehubSkillConnections(isLobehubSkillEnabled);
   useFetchUserKlavisServers(isKlavisEnabled);
+  useFetchAgentSkills(true);
   useFetchUninstalledBuiltinTools(true);
 
   const getLobehubSkillServerByProvider = (providerId: string) => {
@@ -105,11 +114,18 @@ const SkillList = memo(() => {
   // 3. Custom MCP Tools (type === 'customPlugin')
   const { integrations, communityMCPs, customMCPs } = useMemo(() => {
     type IntegrationItem =
+      | { builtinAgentSkill: BuiltinSkill; type: 'builtinAgent' }
       | { builtinTool: LobeBuiltinTool; type: 'builtin' }
       | { provider: LobehubSkillProviderType; type: 'lobehub' }
       | { serverType: KlavisServerType; type: 'klavis' };
 
     let integrationItems: IntegrationItem[] = [];
+
+    // Add builtin agent skills first so they appear early in the list
+    for (const skill of builtinSkills) {
+      integrationItems.push({ builtinAgentSkill: skill, type: 'builtinAgent' });
+    }
+
     const addedBuiltinIds = new Set<string>();
     const addedLobehubIds = new Set<string>();
     const addedKlavisIds = new Set<string>();
@@ -202,7 +218,7 @@ const SkillList = memo(() => {
 
       // Filter integrations: show all builtin and lobehub skills, but only connected klavis
       integrationItems = integrationItems.filter((item) => {
-        if (item.type === 'builtin' || item.type === 'lobehub') {
+        if (item.type === 'builtinAgent' || item.type === 'builtin' || item.type === 'lobehub') {
           return true;
         }
         return (
@@ -213,23 +229,31 @@ const SkillList = memo(() => {
     }
 
     // Sort integrations: installed/connected ones first
+    const getIsConnected = (item: IntegrationItem) => {
+      switch (item.type) {
+        case 'builtinAgent': {
+          return isBuiltinToolInstalled(item.builtinAgentSkill.identifier);
+        }
+        case 'builtin': {
+          return isBuiltinToolInstalled(item.builtinTool.identifier);
+        }
+        case 'lobehub': {
+          return (
+            getLobehubSkillServerByProvider(item.provider.id)?.status ===
+            LobehubSkillStatus.CONNECTED
+          );
+        }
+        case 'klavis': {
+          return (
+            getKlavisServerByIdentifier(item.serverType.identifier)?.status ===
+            KlavisServerStatus.CONNECTED
+          );
+        }
+      }
+    };
     const sortedIntegrations = integrationItems.sort((a, b) => {
-      const isConnectedA =
-        a.type === 'builtin'
-          ? isBuiltinToolInstalled(a.builtinTool.identifier)
-          : a.type === 'lobehub'
-            ? getLobehubSkillServerByProvider(a.provider.id)?.status ===
-              LobehubSkillStatus.CONNECTED
-            : getKlavisServerByIdentifier(a.serverType.identifier)?.status ===
-              KlavisServerStatus.CONNECTED;
-      const isConnectedB =
-        b.type === 'builtin'
-          ? isBuiltinToolInstalled(b.builtinTool.identifier)
-          : b.type === 'lobehub'
-            ? getLobehubSkillServerByProvider(b.provider.id)?.status ===
-              LobehubSkillStatus.CONNECTED
-            : getKlavisServerByIdentifier(b.serverType.identifier)?.status ===
-              KlavisServerStatus.CONNECTED;
+      const isConnectedA = getIsConnected(a);
+      const isConnectedB = getIsConnected(b);
 
       if (isConnectedA && !isConnectedB) return -1;
       if (!isConnectedA && isConnectedB) return 1;
@@ -253,9 +277,16 @@ const SkillList = memo(() => {
     allKlavisServers,
     allBuiltinTools,
     uninstalledBuiltinTools,
+    builtinSkills,
   ]);
 
-  const hasAnySkills = integrations.length > 0 || communityMCPs.length > 0 || customMCPs.length > 0;
+  const hasAnySkills =
+    builtinSkills.length > 0 ||
+    integrations.length > 0 ||
+    marketAgentSkills.length > 0 ||
+    userAgentSkills.length > 0 ||
+    communityMCPs.length > 0 ||
+    customMCPs.length > 0;
 
   if (!hasAnySkills) {
     return (
@@ -268,6 +299,11 @@ const SkillList = memo(() => {
 
   const renderIntegrations = () =>
     integrations.map((item) => {
+      if (item.type === 'builtinAgent') {
+        return (
+          <AgentSkillItem key={item.builtinAgentSkill.identifier} skill={item.builtinAgentSkill} />
+        );
+      }
       if (item.type === 'builtin') {
         const localizedTitle = t(`tools.builtins.${item.builtinTool.identifier}.title`, {
           defaultValue: item.builtinTool.manifest.meta?.title || item.builtinTool.identifier,
@@ -299,6 +335,12 @@ const SkillList = memo(() => {
       );
     });
 
+  const renderMarketAgentSkills = () =>
+    marketAgentSkills.map((skill) => <AgentSkillItem key={skill.id} skill={skill} />);
+
+  const renderUserAgentSkills = () =>
+    userAgentSkills.map((skill) => <AgentSkillItem key={skill.id} skill={skill} />);
+
   const renderCommunityMCPs = () =>
     communityMCPs.map((plugin) => (
       <McpSkillItem
@@ -325,14 +367,20 @@ const SkillList = memo(() => {
       />
     ));
 
+  const hasIntegrationsSection = integrations.length > 0;
+  const hasCommunitySection = communityMCPs.length > 0 || marketAgentSkills.length > 0;
+  const hasCustomSection = userAgentSkills.length > 0 || customMCPs.length > 0;
+
   return (
     <div className={styles.container}>
       {integrations.length > 0 && renderIntegrations()}
-      {integrations.length > 0 && communityMCPs.length > 0 && <Divider style={{ margin: 0 }} />}
+      {hasIntegrationsSection && hasCommunitySection && <Divider style={{ margin: 0 }} />}
+      {marketAgentSkills.length > 0 && renderMarketAgentSkills()}
       {communityMCPs.length > 0 && renderCommunityMCPs()}
-      {(integrations.length > 0 || communityMCPs.length > 0) && customMCPs.length > 0 && (
+      {(hasIntegrationsSection || hasCommunitySection) && hasCustomSection && (
         <Divider style={{ margin: 0 }} />
       )}
+      {userAgentSkills.length > 0 && renderUserAgentSkills()}
       {customMCPs.length > 0 && renderCustomMCPs()}
       <div style={{ marginTop: 8 }}>
         <AddSkillButton />
