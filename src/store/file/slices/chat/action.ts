@@ -77,7 +77,7 @@ export class FileActionImpl {
     let isFinished = false;
 
     while (!isFinished) {
-      // 每间隔 2s 查询一次任务状态
+      // Poll task status every 2 seconds
       await sleep(2000);
 
       let fileItem: FileListItem | undefined = undefined;
