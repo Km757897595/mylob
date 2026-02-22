@@ -396,8 +396,16 @@ export class MarketService {
     order?: 'asc' | 'desc';
     page?: number;
     pageSize?: number;
-    search?: string;
-    sort?: 'createdAt' | 'downloadCount' | 'forks' | 'name' | 'stars' | 'updatedAt' | 'watchers';
+    q?: string;
+    sort?:
+      | 'createdAt'
+      | 'forks'
+      | 'installCount'
+      | 'name'
+      | 'relevance'
+      | 'stars'
+      | 'updatedAt'
+      | 'watchers';
   }) {
     log('searchSkill: %O', params);
 

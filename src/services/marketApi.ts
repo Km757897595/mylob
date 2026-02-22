@@ -213,14 +213,22 @@ export class MarketApiService {
     order?: 'asc' | 'desc';
     page?: number;
     pageSize?: number;
-    search?: string;
-    sort?: 'createdAt' | 'downloadCount' | 'forks' | 'name' | 'stars' | 'updatedAt' | 'watchers';
+    q?: string;
+    sort?:
+      | 'createdAt'
+      | 'forks'
+      | 'installCount'
+      | 'name'
+      | 'relevance'
+      | 'stars'
+      | 'updatedAt'
+      | 'watchers';
   }): Promise<{
     items: Array<{
       category?: string;
       createdAt: string;
       description: string;
-      downloadCount: number;
+      installCount: number;
       identifier: string;
       name: string;
       repository?: string;
