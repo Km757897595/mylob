@@ -8,6 +8,7 @@ import { LocalSystemManifest } from '@lobechat/builtin-tool-local-system';
 import { MemoryManifest } from '@lobechat/builtin-tool-memory';
 import { NotebookManifest } from '@lobechat/builtin-tool-notebook';
 import { PageAgentManifest } from '@lobechat/builtin-tool-page-agent';
+import { SkillStoreManifest } from '@lobechat/builtin-tool-skill-store';
 import { SkillsManifest } from '@lobechat/builtin-tool-skills';
 import { LobeToolsManifest } from '@lobechat/builtin-tool-tools';
 import { WebBrowsingManifest } from '@lobechat/builtin-tool-web-browsing';
@@ -19,19 +20,37 @@ import { type LobeBuiltinTool } from '@lobechat/types';
  * Shared between frontend (createAgentToolsEngine) and server (createServerAgentToolsEngine).
  */
 export const defaultToolIds = [
+  LobeToolsManifest.identifier,
+  SkillsManifest.identifier,
+  SkillStoreManifest.identifier,
   WebBrowsingManifest.identifier,
   KnowledgeBaseManifest.identifier,
-  SkillsManifest.identifier,
 ];
 
 export const builtinTools: LobeBuiltinTool[] = [
   {
+    discoverable: false,
+    hidden: true,
+    identifier: LobeToolsManifest.identifier,
+    manifest: LobeToolsManifest,
+    type: 'builtin',
+  },
+  {
+    discoverable: false,
     hidden: true,
     identifier: SkillsManifest.identifier,
     manifest: SkillsManifest,
     type: 'builtin',
   },
   {
+    discoverable: false,
+    hidden: true,
+    identifier: SkillStoreManifest.identifier,
+    manifest: SkillStoreManifest,
+    type: 'builtin',
+  },
+  {
+    discoverable: isDesktop,
     hidden: !isDesktop,
     identifier: LocalSystemManifest.identifier,
     manifest: LocalSystemManifest,
@@ -60,24 +79,28 @@ export const builtinTools: LobeBuiltinTool[] = [
     type: 'builtin',
   },
   {
+    discoverable: false,
     hidden: true,
     identifier: PageAgentManifest.identifier,
     manifest: PageAgentManifest,
     type: 'builtin',
   },
   {
+    discoverable: false,
     hidden: true,
     identifier: AgentBuilderManifest.identifier,
     manifest: AgentBuilderManifest,
     type: 'builtin',
   },
   {
+    discoverable: false,
     hidden: true,
     identifier: GroupAgentBuilderManifest.identifier,
     manifest: GroupAgentBuilderManifest,
     type: 'builtin',
   },
   {
+    discoverable: false,
     hidden: true,
     identifier: GroupManagementManifest.identifier,
     manifest: GroupManagementManifest,
@@ -91,12 +114,6 @@ export const builtinTools: LobeBuiltinTool[] = [
   {
     identifier: NotebookManifest.identifier,
     manifest: NotebookManifest,
-    type: 'builtin',
-  },
-  {
-    hidden: true,
-    identifier: LobeToolsManifest.identifier,
-    manifest: LobeToolsManifest,
     type: 'builtin',
   },
 ];
