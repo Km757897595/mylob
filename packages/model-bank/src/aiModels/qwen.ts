@@ -11,55 +11,6 @@ const qwenChatModels: AIChatModelCard[] = [
     },
     contextWindowTokens: 262_144,
     description:
-      'Qwen3.5 397B A17B is a large-scale open model in the Qwen series, delivering excellent performance in complex reasoning, knowledge QA, and coding. It supports thinking mode for highly complex tasks.',
-    displayName: 'Qwen3.5 397B A17B',
-    id: 'qwen3.5-397b-a17b',
-    maxOutput: 65_536,
-    organization: 'Qwen',
-    pricing: {
-      currency: 'CNY',
-      units: [
-        {
-          lookup: {
-            prices: {
-              '[0, 0.128]': 1.2,
-              '[0.128, 0.256]': 3,
-            },
-            pricingParams: ['textInputRange'],
-          },
-          name: 'textInput',
-          strategy: 'lookup',
-          unit: 'millionTokens',
-        },
-        {
-          lookup: {
-            prices: {
-              '[0, 0.128]': 7.2,
-              '[0.128, 0.256]': 18,
-            },
-            pricingParams: ['textInputRange'],
-          },
-          name: 'textOutput',
-          strategy: 'lookup',
-          unit: 'millionTokens',
-        },
-      ],
-    },
-    releasedAt: '2026-02-15',
-    settings: {
-      extendParams: ['enableReasoning', 'reasoningBudgetToken'],
-      searchImpl: 'params',
-    },
-    type: 'chat',
-  },
-  {
-    abilities: {
-      functionCall: true,
-      reasoning: true,
-      vision: true,
-    },
-    contextWindowTokens: 262_144,
-    description:
       'Kimi K2.5 is the most capable Kimi model, delivering open-source SOTA in agent tasks, coding, and vision understanding. It supports multimodal inputs and both thinking and non-thinking modes.',
     displayName: 'Kimi K2.5',
     id: 'kimi-k2.5',
@@ -74,6 +25,30 @@ const qwenChatModels: AIChatModelCard[] = [
     },
     settings: {
       extendParams: ['enableReasoning', 'reasoningBudgetToken'],
+    },
+    type: 'chat',
+  },
+  {
+    abilities: {
+      functionCall: true,
+      reasoning: true,
+      search: true,
+    },
+    contextWindowTokens: 204_800,
+    description:
+      'MiniMax-M2.5 is a flagship open-source large model from MiniMax, focusing on solving complex real-world tasks. Its core strengths are multi-language programming capabilities and the ability to solve complex tasks as an Agent.',
+    displayName: 'MiniMax-M2.5',
+    id: 'MiniMax-M2.5',
+    maxOutput: 131_072,
+    pricing: {
+      currency: 'CNY',
+      units: [
+        { name: 'textInput', rate: 2.1, strategy: 'fixed', unit: 'millionTokens' },
+        { name: 'textOutput', rate: 8.4, strategy: 'fixed', unit: 'millionTokens' },
+      ],
+    },
+    settings: {
+      searchImpl: 'params',
     },
     type: 'chat',
   },
@@ -206,6 +181,31 @@ const qwenChatModels: AIChatModelCard[] = [
   },
   {
     abilities: {
+      functionCall: true,
+      reasoning: true,
+      search: true,
+    },
+    contextWindowTokens: 131_072,
+    description:
+      'deepseek-v3.2 introduces sparse attention mechanism, aiming to improve training and inference efficiency when processing long texts, priced lower than deepseek-v3.1.',
+    displayName: 'DeepSeek V3.2',
+    id: 'deepseek-v3.2',
+    maxOutput: 65_536,
+    pricing: {
+      currency: 'CNY',
+      units: [
+        { name: 'textInput', rate: 2, strategy: 'fixed', unit: 'millionTokens' },
+        { name: 'textOutput', rate: 3, strategy: 'fixed', unit: 'millionTokens' },
+      ],
+    },
+    settings: {
+      extendParams: ['enableReasoning', 'reasoningBudgetToken'],
+    },
+    type: 'chat',
+  },
+  {
+    abilities: {
+      functionCall: true,
       reasoning: true,
       search: true,
     },
@@ -229,6 +229,7 @@ const qwenChatModels: AIChatModelCard[] = [
   },
   {
     abilities: {
+      functionCall: true,
       reasoning: true,
       search: true,
     },
@@ -789,7 +790,7 @@ const qwenChatModels: AIChatModelCard[] = [
     abilities: {
       functionCall: true,
       reasoning: true,
-      vision: true
+      vision: true,
     },
     contextWindowTokens: 262_144,
     description:
@@ -1645,10 +1646,11 @@ const qwenChatModels: AIChatModelCard[] = [
       currency: 'CNY',
       units: [
         { name: 'textInput', rate: 1.8, strategy: 'fixed', unit: 'millionTokens' },
+        { name: 'audioInput', rate: 15.8, strategy: 'fixed', unit: 'millionTokens' },
+        { name: 'imageInput', rate: 3.3, strategy: 'fixed', unit: 'millionTokens' },
         { name: 'textOutput', rate: 6.9, strategy: 'fixed', unit: 'millionTokens' },
       ],
     },
-    releasedAt: '2025-09-15',
     settings: {
       extendParams: ['enableReasoning', 'reasoningBudgetToken'],
     },
