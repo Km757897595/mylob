@@ -1,7 +1,11 @@
-import { emoji } from 'chat';
-
 import type { StepPresentationData } from '../agentRuntime/types';
 import { getExtremeAck } from './ackPhrases';
+
+// Use raw Unicode emoji instead of Chat SDK emoji placeholders,
+// because bot-callback webhooks send via DiscordRestApi directly
+// (not through the Chat SDK adapter that resolves placeholders).
+const EMOJI_THINKING = '💭';
+const EMOJI_SUCCESS = '✅';
 
 // ==================== Message Splitting ====================
 
@@ -68,17 +72,13 @@ function formatToolCall(tc: ToolCallItem): string {
   return formatToolName(tc);
 }
 
-export function summarizeOutput(output: string | undefined, maxLength = 100): string | undefined {
+export function summarizeOutput(output: string | undefined): string | undefined {
   if (!output) return undefined;
-  const lines = output.split('\n').filter((l) => l.trim());
-  if (lines.length === 0) return undefined;
+  const trimmed = output.trim();
+  if (trimmed.length === 0) return undefined;
 
-  const firstLine = lines[0].length > maxLength ? lines[0].slice(0, maxLength) + '...' : lines[0];
-
-  if (lines.length > 1) {
-    return `${firstLine} … +${lines.length - 1} lines`;
-  }
-  return firstLine;
+  const chars = trimmed.length;
+  return `success: ${chars.toLocaleString()} chars`;
 }
 
 function formatPendingTools(toolsCalling: ToolCallItem[]): string {
@@ -178,7 +178,7 @@ export function renderLLMGenerating(params: RenderStepParams): string {
 
   // Sub-state: has reasoning (thinking)
   if (reasoning && !content) {
-    return `${header}${emoji.thinking} ${reasoning}${footer}`;
+    return `${header}${EMOJI_THINKING} ${reasoning}${footer}`;
   }
 
   // Sub-state: pure text content (waiting for next step)
@@ -186,7 +186,7 @@ export function renderLLMGenerating(params: RenderStepParams): string {
     return `${header}${displayContent}\n\n${footer}`;
   }
 
-  return `${header}${emoji.thinking} Processing...${footer}`;
+  return `${header}${EMOJI_THINKING} Processing...${footer}`;
 }
 
 // ==================== 3. Tool Executing ====================
@@ -220,9 +220,9 @@ export function renderToolExecuting(params: RenderStepParams): string {
 
   if (lastToolsCalling && lastToolsCalling.length > 0) {
     parts.push(formatCompletedTools(lastToolsCalling, toolsResult));
-    parts.push(`${emoji.thinking} Processing...`);
+    parts.push(`${EMOJI_THINKING} Processing...`);
   } else {
-    parts.push(`${emoji.thinking} Processing...`);
+    parts.push(`${EMOJI_THINKING} Processing...`);
   }
 
   return parts.join('\n\n') + footer;

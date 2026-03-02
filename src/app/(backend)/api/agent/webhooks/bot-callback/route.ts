@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const body = JSON.parse(rawBody);
 
-  const { type, applicationId, platformThreadId, progressMessageId } = body;
+  const { type, applicationId, platformThreadId, progressMessageId, userMessageId } = body;
 
   log(
     'bot-callback: parsed body keys=%s, type=%s, applicationId=%s, platformThreadId=%s, progressMessageId=%s',
@@ -103,6 +103,15 @@ export async function POST(request: Request): Promise<Response> {
       await handleStepCallback(body, discord, channelId, progressMessageId);
     } else if (type === 'completion') {
       await handleCompletionCallback(body, discord, channelId, progressMessageId);
+
+      // Remove eyes reaction from the original user message
+      if (userMessageId) {
+        try {
+          await discord.removeOwnReaction(channelId, userMessageId, '👀');
+        } catch (error) {
+          log('bot-callback: failed to remove eyes reaction: %O', error);
+        }
+      }
     } else {
       return NextResponse.json({ error: `Unknown callback type: ${type}` }, { status: 400 });
     }
@@ -145,8 +154,15 @@ async function handleStepCallback(
     totalToolCalls: body.totalToolCalls,
   });
 
+  // If the LLM returned text without tool calls, the next step is 'finish' — skip typing
+  const isLlmFinalResponse =
+    body.stepType === 'call_llm' && !body.toolsCalling?.length && body.content;
+
   try {
     await discord.editMessage(channelId, progressMessageId, progressText);
+    if (!isLlmFinalResponse) {
+      await discord.triggerTyping(channelId);
+    }
   } catch (error) {
     log('handleStepCallback: failed to edit progress message: %O', error);
   }

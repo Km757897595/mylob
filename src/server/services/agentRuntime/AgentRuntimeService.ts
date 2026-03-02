@@ -577,42 +577,51 @@ export class AgentRuntimeService {
         const toolNames = mappedResults.map((r) => `${r.identifier}/${r.apiName}`);
         stepSummary = `[tools×${toolCount}] ${toolNames.join(', ')}`;
       } else {
-        // LLM result
-        const llmEvent = stepResult.events?.find((e) => e.type === 'llm_result');
-        content = (llmEvent as any)?.result?.content || undefined;
-        reasoning = (llmEvent as any)?.result?.reasoning || undefined;
-
-        // Use parsed ChatToolPayload from payload (has identifier + apiName)
-        const payloadToolsCalling = (stepResult.nextContext?.payload as any)?.toolsCalling as
-          | Array<{ apiName: string; arguments: string; identifier: string }>
+        // Check for done event first (finish step with no next context)
+        const doneEvent = stepResult.events?.find((e) => e.type === 'done') as
+          | { reason?: string; reasonDetail?: string; type: 'done' }
           | undefined;
-        const hasToolCalls = Array.isArray(payloadToolsCalling) && payloadToolsCalling.length > 0;
 
-        if (hasToolCalls) {
-          toolsCalling = payloadToolsCalling.map((tc) => ({
-            apiName: tc.apiName,
-            arguments: tc.arguments,
-            identifier: tc.identifier,
-          }));
-        }
-
-        const parts: string[] = [];
-        if (reasoning) {
-          const thinkPreview = reasoning.length > 30 ? reasoning.slice(0, 30) + '...' : reasoning;
-          parts.push(`💭 "${thinkPreview}"`);
-        }
-        if (!content && hasToolCalls) {
-          parts.push(
-            `→ call tools: ${toolsCalling!.map((tc) => `${tc.identifier}|${tc.apiName}`).join(', ')}`,
-          );
-        } else if (content) {
-          const preview = content.length > 20 ? content.slice(0, 20) + '...' : content;
-          parts.push(`"${preview}"`);
-        }
-        if (parts.length > 0) {
-          stepSummary = `[llm] ${parts.join(' | ')}`;
+        if (doneEvent) {
+          stepSummary = `[done] reason=${doneEvent.reason ?? 'unknown'}`;
         } else {
-          stepSummary = `[llm] (empty) result: ${JSON.stringify(stepResult, null, 2)}`;
+          // LLM result
+          const llmEvent = stepResult.events?.find((e) => e.type === 'llm_result');
+          content = (llmEvent as any)?.result?.content || undefined;
+          reasoning = (llmEvent as any)?.result?.reasoning || undefined;
+
+          // Use parsed ChatToolPayload from payload (has identifier + apiName)
+          const payloadToolsCalling = (stepResult.nextContext?.payload as any)?.toolsCalling as
+            | Array<{ apiName: string; arguments: string; identifier: string }>
+            | undefined;
+          const hasToolCalls = Array.isArray(payloadToolsCalling) && payloadToolsCalling.length > 0;
+
+          if (hasToolCalls) {
+            toolsCalling = payloadToolsCalling.map((tc) => ({
+              apiName: tc.apiName,
+              arguments: tc.arguments,
+              identifier: tc.identifier,
+            }));
+          }
+
+          const parts: string[] = [];
+          if (reasoning) {
+            const thinkPreview = reasoning.length > 30 ? reasoning.slice(0, 30) + '...' : reasoning;
+            parts.push(`💭 "${thinkPreview}"`);
+          }
+          if (!content && hasToolCalls) {
+            parts.push(
+              `→ call tools: ${toolsCalling!.map((tc) => `${tc.identifier}|${tc.apiName}`).join(', ')}`,
+            );
+          } else if (content) {
+            const preview = content.length > 20 ? content.slice(0, 20) + '...' : content;
+            parts.push(`"${preview}"`);
+          }
+          if (parts.length > 0) {
+            stepSummary = `[llm] ${parts.join(' | ')}`;
+          } else {
+            stepSummary = `[llm] (empty) phase=${stepResult.nextContext?.phase ?? 'none'} events=${stepResult.events?.length ?? 0}`;
+          }
         }
       }
 
@@ -704,12 +713,12 @@ export class AgentRuntimeService {
         stepResult.newState.metadata._stepTracking = updatedTracking;
         await this.coordinator.saveAgentState(operationId, stepResult.newState);
 
-        // Fire step webhook
-        await this.triggerStepWebhook(
-          stepResult.newState,
-          operationId,
-          stepPresentationData as unknown as Record<string, unknown>,
-        );
+        // Fire step webhook (include shouldContinue so the callback knows
+        // whether the agent is still running or about to complete)
+        await this.triggerStepWebhook(stepResult.newState, operationId, {
+          ...stepPresentationData,
+          shouldContinue,
+        } as unknown as Record<string, unknown>);
       }
 
       if (shouldContinue && stepResult.nextContext && this.queueService) {

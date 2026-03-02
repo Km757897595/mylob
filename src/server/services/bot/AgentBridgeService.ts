@@ -113,6 +113,8 @@ export class AgentBridgeService {
     await thread.subscribe();
     await thread.startTyping();
 
+    const queueMode = isQueueAgentRuntimeEnabled();
+
     try {
       // executeWithCallback handles progress message (post + edit at each step)
       // The final reply is edited into the progress message by onComplete
@@ -132,8 +134,10 @@ export class AgentBridgeService {
       const msg = error instanceof Error ? error.message : String(error);
       await thread.post(`**Agent Execution Failed**\n\`\`\`\n${msg}\n\`\`\``);
     } finally {
-      // Always clean up reactions
-      await this.removeReceivedReaction(thread, message);
+      // In queue mode, reaction is removed by the bot-callback webhook on completion
+      if (!queueMode) {
+        await this.removeReceivedReaction(thread, message);
+      }
     }
   }
 
@@ -156,6 +160,8 @@ export class AgentBridgeService {
       return this.handleMention(thread, message, { agentId, botContext });
     }
 
+    const queueMode = isQueueAgentRuntimeEnabled();
+
     // Immediate feedback: mark as received + show typing
     await safeReaction(
       () => thread.adapter.addReaction(thread.id, message.id, RECEIVED_EMOJI),
@@ -176,7 +182,10 @@ export class AgentBridgeService {
       const msg = error instanceof Error ? error.message : String(error);
       await thread.post(`**Agent Execution Failed**. Details:\n\`\`\`\n${msg}\n\`\`\``);
     } finally {
-      await this.removeReceivedReaction(thread, message);
+      // In queue mode, reaction is removed by the bot-callback webhook on completion
+      if (!queueMode) {
+        await this.removeReceivedReaction(thread, message);
+      }
     }
   }
 
@@ -232,6 +241,10 @@ export class AgentBridgeService {
       throw new Error('Failed to post initial progress message');
     }
 
+    // Refresh typing indicator after posting the ack message,
+    // so typing stays active until the first step webhook arrives
+    await thread.startTyping();
+
     // Build webhook URL for bot-callback endpoint
     // Prefer INTERNAL_APP_URL for server-to-server calls (bypasses CDN/proxy)
     const baseURL = appEnv.INTERNAL_APP_URL || appEnv.APP_URL;
@@ -245,6 +258,7 @@ export class AgentBridgeService {
       applicationId: botContext?.applicationId,
       platformThreadId: botContext?.platformThreadId,
       progressMessageId,
+      userMessageId: userMessage.id,
     };
 
     log(
