@@ -911,6 +911,92 @@ describe('google contextBuilders', () => {
       ]);
     });
 
+    it('should merge consecutive functionResponse contents into a single Content for multi-tool-call turns', async () => {
+      const messages: OpenAIChatMessage[] = [
+        { content: 'What is the weather in London and Tokyo?', role: 'user' },
+        {
+          content: '',
+          role: 'assistant',
+          tool_calls: [
+            {
+              function: {
+                arguments: JSON.stringify({ location: 'London' }),
+                name: 'get_weather',
+              },
+              id: 'call_1',
+              type: 'function',
+            },
+            {
+              function: {
+                arguments: JSON.stringify({ location: 'Tokyo' }),
+                name: 'get_weather',
+              },
+              id: 'call_2',
+              type: 'function',
+            },
+          ],
+        },
+        {
+          content: '{"temperature":"14°C"}',
+          name: 'get_weather',
+          role: 'tool',
+          tool_call_id: 'call_1',
+        },
+        {
+          content: '{"temperature":"22°C"}',
+          name: 'get_weather',
+          role: 'tool',
+          tool_call_id: 'call_2',
+        },
+      ];
+
+      const contents = await buildGoogleMessages(messages);
+
+      // Function calls should be in one Content, function responses merged into one Content
+      expect(contents).toHaveLength(3);
+      expect(contents).toEqual([
+        {
+          parts: [
+            {
+              text: 'What is the weather in London and Tokyo?',
+              thoughtSignature: GEMINI_MAGIC_THOUGHT_SIGNATURE,
+            },
+          ],
+          role: 'user',
+        },
+        {
+          parts: [
+            {
+              functionCall: { args: { location: 'London' }, name: 'get_weather' },
+              thoughtSignature: GEMINI_MAGIC_THOUGHT_SIGNATURE,
+            },
+            {
+              functionCall: { args: { location: 'Tokyo' }, name: 'get_weather' },
+              thoughtSignature: GEMINI_MAGIC_THOUGHT_SIGNATURE,
+            },
+          ],
+          role: 'model',
+        },
+        {
+          parts: [
+            {
+              functionResponse: {
+                name: 'get_weather',
+                response: { result: '{"temperature":"14°C"}' },
+              },
+            },
+            {
+              functionResponse: {
+                name: 'get_weather',
+                response: { result: '{"temperature":"22°C"}' },
+              },
+            },
+          ],
+          role: 'user',
+        },
+      ]);
+    });
+
     it('should correctly convert full conversation with thoughtSignature', async () => {
       const messages: OpenAIChatMessage[] = [
         { content: 'system prompt', role: 'system' },
@@ -1224,6 +1310,56 @@ describe('google contextBuilders', () => {
       // When enum only contains null, the enum property should be removed
       expect(result.parameters?.properties?.value).toEqual({
         type: 'string',
+      });
+    });
+
+    it('should strip unsupported JSON Schema keywords like examples and default', () => {
+      const tool: ChatCompletionTool = {
+        function: {
+          description: 'A tool with unsupported schema keywords',
+          name: 'mcp_tool',
+          parameters: {
+            properties: {
+              query: {
+                default: 'hello',
+                description: 'Search query',
+                examples: ['weather in London', 'latest news'],
+                type: 'string',
+              },
+              nested: {
+                properties: {
+                  format: {
+                    $comment: 'internal note',
+                    examples: ['json', 'xml'],
+                    type: 'string',
+                  },
+                },
+                type: 'object',
+              },
+            },
+            type: 'object',
+          },
+        },
+        type: 'function',
+      };
+
+      const result = buildGoogleTool(tool);
+
+      // examples, default should be stripped; $comment is silently ignored by the API
+      expect(result.parameters?.properties).toEqual({
+        query: {
+          description: 'Search query',
+          type: 'string',
+        },
+        nested: {
+          properties: {
+            format: {
+              $comment: 'internal note',
+              type: 'string',
+            },
+          },
+          type: 'object',
+        },
       });
     });
   });

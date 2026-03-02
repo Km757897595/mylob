@@ -187,9 +187,28 @@ export const buildGoogleMessages = async (messages: OpenAIChatMessage[]): Promis
   const contents = await Promise.all(pools);
 
   // Filter out empty messages: contents.parts must not be empty.
-  const filteredContents = contents.filter(
+  const nonEmptyContents = contents.filter(
     (content: Content) => content.parts && content.parts.length > 0,
   );
+
+  // Merge consecutive functionResponse contents into a single Content.
+  // Vertex AI requires the number of functionResponse parts to equal
+  // the number of functionCall parts in the preceding model turn.
+  const filteredContents: Content[] = [];
+  for (const content of nonEmptyContents) {
+    const isFunctionResponse =
+      content.role === 'user' && content.parts?.every((p) => p.functionResponse);
+
+    const last = filteredContents.at(-1);
+    const lastIsFunctionResponse =
+      last?.role === 'user' && last.parts?.every((p) => p.functionResponse);
+
+    if (isFunctionResponse && lastIsFunctionResponse) {
+      last!.parts = [...(last!.parts || []), ...(content.parts || [])];
+    } else {
+      filteredContents.push(content);
+    }
+  }
 
   // Check if the last message is a tool message
   const lastMessage = messages.at(-1);
@@ -227,6 +246,12 @@ export const buildGoogleMessages = async (messages: OpenAIChatMessage[]): Promis
 };
 
 /**
+ * JSON Schema keywords that cause Google GenAI / Vertex AI SDK validation errors.
+ * Other unsupported keywords are silently ignored by the API, so only strip these.
+ */
+const UNSUPPORTED_SCHEMA_KEYS = new Set(['examples', 'default']);
+
+/**
  * Sanitize JSON Schema for Google GenAI compatibility
  * Google's API doesn't support certain JSON Schema keywords like 'const'
  * This function recursively processes the schema and converts unsupported keywords
@@ -242,6 +267,9 @@ const sanitizeSchemaForGoogle = (schema: Record<string, any>): Record<string, an
   const result: Record<string, any> = {};
 
   for (const [key, value] of Object.entries(schema)) {
+    // Strip unsupported JSON Schema keywords (e.g. examples, default, $schema)
+    if (UNSUPPORTED_SCHEMA_KEYS.has(key)) continue;
+
     // Convert 'const' to 'enum' with single value (Google doesn't support 'const')
     if (key === 'const') {
       result['enum'] = [value];
