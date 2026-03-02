@@ -263,6 +263,7 @@ export class AgentRuntimeService {
       completionWebhook,
       stepWebhook,
       webhookDelivery,
+      discordContext,
       evalContext,
       maxSteps,
     } = params;
@@ -281,6 +282,7 @@ export class AgentRuntimeService {
         metadata: {
           agentConfig,
           completionWebhook,
+          discordContext,
           evalContext,
           // need be removed
           modelRuntimeConfig,
@@ -532,7 +534,9 @@ export class AgentRuntimeService {
       let toolsCalling:
         | Array<{ apiName: string; arguments?: string; identifier: string }>
         | undefined;
-      let toolsResult: Array<{ apiName: string; identifier: string; output?: string }> | undefined;
+      let toolsResult:
+        | Array<{ apiName: string; identifier: string; isSuccess?: boolean; output?: string }>
+        | undefined;
       let stepSummary: string;
 
       if (phase === 'tool_result') {
@@ -545,6 +549,7 @@ export class AgentRuntimeService {
           {
             apiName,
             identifier,
+            isSuccess: toolPayload?.isSuccess !== false,
             output:
               typeof output === 'string'
                 ? output
@@ -558,21 +563,26 @@ export class AgentRuntimeService {
         const nextPayload = stepResult.nextContext?.payload as any;
         const toolCount = nextPayload?.toolCount || 0;
         const rawToolResults = nextPayload?.toolResults || [];
-        const mappedResults: Array<{ apiName: string; identifier: string; output?: string }> =
-          rawToolResults.map((r: any) => {
-            const tc = r.toolCall;
-            const output = r.data;
-            return {
-              apiName: tc?.apiName || 'unknown',
-              identifier: tc?.identifier || 'unknown',
-              output:
-                typeof output === 'string'
-                  ? output
-                  : output != null
-                    ? JSON.stringify(output)
-                    : undefined,
-            };
-          });
+        const mappedResults: Array<{
+          apiName: string;
+          identifier: string;
+          isSuccess?: boolean;
+          output?: string;
+        }> = rawToolResults.map((r: any) => {
+          const tc = r.toolCall;
+          const output = r.data;
+          return {
+            apiName: tc?.apiName || 'unknown',
+            identifier: tc?.identifier || 'unknown',
+            isSuccess: r?.isSuccess !== false,
+            output:
+              typeof output === 'string'
+                ? output
+                : output != null
+                  ? JSON.stringify(output)
+                  : undefined,
+          };
+        });
         toolsResult = mappedResults;
         const toolNames = mappedResults.map((r) => `${r.identifier}/${r.apiName}`);
         stepSummary = `[tools×${toolCount}] ${toolNames.join(', ')}`;
@@ -1166,6 +1176,7 @@ export class AgentRuntimeService {
     // Create streaming executor context
     const executorContext: RuntimeExecutorContext = {
       agentConfig: metadata?.agentConfig,
+      discordContext: metadata?.discordContext,
       evalContext: metadata?.evalContext,
       messageModel: this.messageModel,
       operationId,

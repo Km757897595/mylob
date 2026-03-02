@@ -144,11 +144,23 @@ describe('replyTemplate', () => {
             thinking: false,
           }),
         ),
-      ).toBe(`Here is my response\n\n`);
+      ).toBe(`Here is my response`);
     });
 
     it('should show processing fallback when no content at all', () => {
       expect(renderLLMGenerating(makeParams({ thinking: false }))).toBe(`💭 Processing...`);
+    });
+
+    it('should trim leading/trailing newlines from content to prevent extra blank lines', () => {
+      expect(
+        renderLLMGenerating(
+          makeParams({
+            content: '\n\nHere is my response\n\n',
+            thinking: false,
+            toolsCalling: [{ apiName: 'search', arguments: '{"q":"test"}', identifier: 'builtin' }],
+          }),
+        ),
+      ).toBe('Here is my response\n\n○ **builtin·search**(q: "test")');
     });
   });
 
@@ -170,7 +182,7 @@ describe('replyTemplate', () => {
           }),
         ),
       ).toBe(
-        `I will search for that.\n\n⏺ **builtin·web_search**(query: "test")\n  ⎿  success:15 chars\n\n💭 Processing...`,
+        `I will search for that.\n\n⏺ **builtin·web_search**(query: "test")\n⎿  success: 15 chars\n\n💭 Processing...`,
       );
     });
 
@@ -210,7 +222,7 @@ describe('replyTemplate', () => {
           }),
         ),
       ).toBe(
-        `⏺ **builtin·search**(q: "test")\n  ⎿  success:15 chars\n⏺ **lobe-web-browsing·readUrl**(url: "https://example.com")\n  ⎿  success:24 chars\n\n💭 Processing...`,
+        `⏺ **builtin·search**(q: "test")\n⎿  success: 15 chars\n⏺ **lobe-web-browsing·readUrl**(url: "https://example.com")\n⎿  success: 24 chars\n\n💭 Processing...`,
       );
     });
 
@@ -228,6 +240,23 @@ describe('replyTemplate', () => {
     it('should show processing fallback when no lastContent and no tools', () => {
       expect(renderToolExecuting(makeParams({ stepType: 'call_tool' }))).toBe(`💭 Processing...`);
     });
+
+    it('should trim leading/trailing newlines from lastContent to prevent extra blank lines', () => {
+      expect(
+        renderToolExecuting(
+          makeParams({
+            lastContent: '\n\nI will search for that.\n\n',
+            lastToolsCalling: [
+              { apiName: 'search', arguments: '{"q":"test"}', identifier: 'builtin' },
+            ],
+            stepType: 'call_tool',
+            toolsResult: [{ apiName: 'search', identifier: 'builtin', output: 'Found results' }],
+          }),
+        ),
+      ).toBe(
+        `I will search for that.\n\n⏺ **builtin·search**(q: "test")\n⎿  success: 13 chars\n\n💭 Processing...`,
+      );
+    });
   });
 
   // ==================== summarizeOutput ====================
@@ -240,7 +269,7 @@ describe('replyTemplate', () => {
     });
 
     it('should show char count for output', () => {
-      expect(summarizeOutput('Hello world')).toBe('success:11 chars');
+      expect(summarizeOutput('Hello world')).toBe('success: 11 chars');
     });
 
     it('should show char count for long output', () => {
@@ -249,7 +278,15 @@ describe('replyTemplate', () => {
     });
 
     it('should show char count for multi-line output', () => {
-      expect(summarizeOutput('line1\nline2\nline3')).toBe('success:17 chars');
+      expect(summarizeOutput('line1\nline2\nline3')).toBe('success: 17 chars');
+    });
+
+    it('should show error status when isSuccess is false', () => {
+      expect(summarizeOutput('Something went wrong', false)).toBe('error: 20 chars');
+    });
+
+    it('should show success status when isSuccess is true', () => {
+      expect(summarizeOutput('All good', true)).toBe('success: 8 chars');
     });
   });
 
@@ -379,7 +416,7 @@ describe('replyTemplate', () => {
           }),
         ),
       ).toBe(
-        `Previous content\n\n⏺ **builtin·search**(q: "test")\n  ⎿  success:13 chars\n\n💭 Processing...`,
+        `Previous content\n\n⏺ **builtin·search**(q: "test")\n⎿  success: 13 chars\n\n💭 Processing...`,
       );
     });
   });
