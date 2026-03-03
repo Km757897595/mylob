@@ -1,6 +1,6 @@
 import { verifyDesktopToken } from './auth';
 import { DeviceGatewayDO } from './DeviceGatewayDO';
-import { Env } from './types';
+import type { Env } from './types';
 
 export { DeviceGatewayDO };
 

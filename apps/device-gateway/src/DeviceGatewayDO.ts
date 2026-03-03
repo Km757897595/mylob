@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 
-import { DeviceAttachment, Env } from './types';
+import type { DeviceAttachment, Env } from './types';
 
 export class DeviceGatewayDO extends DurableObject<Env> {
   private pendingRequests = new Map<
@@ -95,7 +95,11 @@ export class DeviceGatewayDO extends DurableObject<Env> {
       );
     }
 
-    const { deviceId, timeout = 30_000, toolCall } = (await request.json()) as {
+    const {
+      deviceId,
+      timeout = 30_000,
+      toolCall,
+    } = (await request.json()) as {
       deviceId?: string;
       timeout?: number;
       toolCall: unknown;
