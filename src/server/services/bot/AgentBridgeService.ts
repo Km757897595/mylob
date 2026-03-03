@@ -4,11 +4,13 @@ import { emoji } from 'chat';
 import debug from 'debug';
 import urlJoin from 'url-join';
 
+import { TopicModel } from '@/database/models/topic';
 import { UserModel } from '@/database/models/user';
 import type { LobeChatDatabase } from '@/database/type';
 import { appEnv } from '@/envs/app';
 import { AiAgentService } from '@/server/services/aiAgent';
 import { isQueueAgentRuntimeEnabled } from '@/server/services/queue/impls';
+import { SystemAgentService } from '@/server/services/systemAgent';
 
 import { formatPrompt as formatPromptUtil } from './formatPrompt';
 import {
@@ -334,6 +336,7 @@ export class AgentBridgeService {
       files,
       prompt,
       stepWebhook: { body: webhookBody, url: callbackUrl },
+      title: '',
       trigger,
       userInterventionConfig: { approvalMode: 'headless' },
       webhookDelivery: 'qstash',
@@ -415,6 +418,7 @@ export class AgentBridgeService {
             : undefined,
           files,
           prompt,
+          title: '',
           stepCallbacks: {
             onAfterStep: async (stepData) => {
               const { content, shouldContinue, toolsCalling } = stepData;
@@ -499,6 +503,32 @@ export class AgentBridgeService {
                     chunks.length,
                   );
                   resolve({ reply: lastAssistantContent, topicId: resolvedTopicId });
+
+                  // Fire-and-forget: summarize topic title in DB (no Discord rename in local mode)
+                  if (resolvedTopicId && prompt) {
+                    const topicModel = new TopicModel(this.db, this.userId);
+                    topicModel
+                      .findById(resolvedTopicId)
+                      .then(async (topic) => {
+                        if (topic?.title) return;
+
+                        const systemAgent = new SystemAgentService(this.db, this.userId);
+                        const title = await systemAgent.generateTopicTitle({
+                          lastAssistantContent,
+                          userPrompt: prompt,
+                        });
+                        if (!title) return;
+
+                        await topicModel.update(resolvedTopicId, { title });
+                      })
+                      .catch((error) => {
+                        log(
+                          'executeWithInMemoryCallbacks: topic title summarization failed: %O',
+                          error,
+                        );
+                      });
+                  }
+
                   return;
                 }
 
