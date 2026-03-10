@@ -7,6 +7,7 @@ import { registerDocCommand } from './commands/doc';
 import { registerFileCommand } from './commands/file';
 import { registerGenerateCommand } from './commands/generate';
 import { registerKbCommand } from './commands/kb';
+import { registerEvalCommand } from './commands/eval';
 import { registerLoginCommand } from './commands/login';
 import { registerLogoutCommand } from './commands/logout';
 import { registerMemoryCommand } from './commands/memory';
@@ -44,5 +45,6 @@ registerModelCommand(program);
 registerProviderCommand(program);
 registerPluginCommand(program);
 registerConfigCommand(program);
+registerEvalCommand(program);
 
 program.parse();
