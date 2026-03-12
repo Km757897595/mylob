@@ -167,52 +167,41 @@ const execInSandboxHandler = async ({
       }
 
       if (lhResult.skipSkillLookup) {
-        enhancedParams = { ...params, command: lhResult.command, config: undefined };
+        enhancedParams = { ...params, command: lhResult.command };
       }
     }
 
-    // For execScript tool, look up skill zipUrl if config is provided
-    if (toolName === 'execScript' && enhancedParams.config) {
+    // For execScript tool, look up skill zipUrls from activatedSkills
+    if (toolName === 'execScript' && enhancedParams.activatedSkills?.length) {
       const agentSkillModel = new AgentSkillModel(ctx.serverDB, userId);
+      const fileModel = new FileModel(ctx.serverDB, userId);
 
-      let skill;
-      if (enhancedParams.config.name) {
-        skill = await agentSkillModel.findByName(enhancedParams.config.name);
+      // Resolve zipUrls for all activated skills
+      const skillZipUrls: Record<string, string> = {};
 
-        if (!skill) {
-          const allSkills = await agentSkillModel.findAll();
-          const availableSkills = allSkills.data.map((s) => s.name).join(', ');
+      for (const activatedSkill of enhancedParams.activatedSkills) {
+        if (!activatedSkill.name) continue;
 
-          const errorMessage = availableSkills
-            ? `Skill "${enhancedParams.config.name}" not found. Available skills: ${availableSkills}`
-            : `Skill "${enhancedParams.config.name}" not found. No skills available. Please import a skill first.`;
+        const skill = await agentSkillModel.findByName(activatedSkill.name);
+        if (!skill?.zipFileHash) continue;
 
-          log(
-            'Skill not found: %s. Available skills: %s',
-            enhancedParams.config.name,
-            availableSkills,
-          );
+        const fileInfo = await fileModel.checkHash(skill.zipFileHash);
+        if (!fileInfo.isExist || !fileInfo.url) continue;
 
-          return {
-            error: { message: errorMessage, name: 'SkillNotFound' },
-            result: null,
-            sessionExpiredAndRecreated: false,
-            success: false,
-          };
+        const fullUrl = await ctx.fileService.getFullFileUrl(fileInfo.url);
+        if (fullUrl) {
+          skillZipUrls[activatedSkill.name] = fullUrl;
+          log('Resolved zipUrl for skill %s: %s', activatedSkill.name, fullUrl);
         }
       }
 
-      if (skill?.zipFileHash) {
-        const fileModel = new FileModel(ctx.serverDB, userId);
-        const fileInfo = await fileModel.checkHash(skill.zipFileHash);
-
-        if (fileInfo.isExist && fileInfo.url) {
-          const fullUrl = await ctx.fileService.getFullFileUrl(fileInfo.url);
-          if (fullUrl) {
-            enhancedParams = { ...params, zipUrl: fullUrl };
-            log('Added zipUrl to execScript params for skill %s: %s', skill.name, fullUrl);
-          }
-        }
+      // Add skillZipUrls to params if any were resolved
+      if (Object.keys(skillZipUrls).length > 0) {
+        enhancedParams = {
+          ...enhancedParams,
+          skillZipUrls,
+        };
+        log('Added skillZipUrls to execScript params: %O', Object.keys(skillZipUrls));
       }
     }
 
