@@ -25,7 +25,9 @@ import { registerSearchCommand } from './commands/search';
 import { registerSessionGroupCommand } from './commands/session-group';
 import { registerSkillCommand } from './commands/skill';
 import { registerStatusCommand } from './commands/status';
+import { registerThreadCommand } from './commands/thread';
 import { registerTopicCommand } from './commands/topic';
+import { registerUserCommand } from './commands/user';
 
 const require = createRequire(import.meta.url);
 const { version } = require('../package.json');
@@ -54,11 +56,13 @@ registerGenerateCommand(program);
 registerFileCommand(program);
 registerSkillCommand(program);
 registerSessionGroupCommand(program);
+registerThreadCommand(program);
 registerTopicCommand(program);
 registerMessageCommand(program);
 registerModelCommand(program);
 registerProviderCommand(program);
 registerPluginCommand(program);
+registerUserCommand(program);
 registerConfigCommand(program);
 registerEvalCommand(program);
 
