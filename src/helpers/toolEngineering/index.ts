@@ -6,7 +6,7 @@ import { KnowledgeBaseManifest } from '@lobechat/builtin-tool-knowledge-base';
 import { LocalSystemManifest } from '@lobechat/builtin-tool-local-system';
 import { MemoryManifest } from '@lobechat/builtin-tool-memory';
 import { WebBrowsingManifest } from '@lobechat/builtin-tool-web-browsing';
-import { defaultToolIds } from '@lobechat/builtin-tools';
+import { alwaysOnToolIds, defaultToolIds } from '@lobechat/builtin-tools';
 import { isDesktop } from '@lobechat/const';
 import { createEnableChecker, type PluginEnableChecker } from '@lobechat/context-engine';
 import { ToolsEngine } from '@lobechat/context-engine';
@@ -83,9 +83,14 @@ export const createToolsEngine = (config: ToolsEngineConfig = {}): ToolsEngine =
   });
 };
 
-export const createAgentToolsEngine = (workingModel: WorkingModel) => {
+export const createAgentToolsEngine = (
+  workingModel: WorkingModel,
+  /** Runtime-resolved plugin IDs (from agentConfigResolver), may include tools beyond the active agent */
+  pluginIds?: string[],
+) => {
   const searchConfig = getSearchConfig(workingModel.model, workingModel.provider);
   const agentState = getAgentStoreState();
+  const userPlugins = agentSelectors.currentAgentPlugins(agentState);
 
   return createToolsEngine({
     defaultToolIds,
@@ -104,6 +109,14 @@ export const createAgentToolsEngine = (workingModel: WorkingModel) => {
         return undefined; // fall through to rules
       },
       rules: {
+        // Runtime-resolved plugins (from agentConfigResolver for the effective agent,
+        // may include sub-agent/group/page scope plugins not on the active agent)
+        ...(pluginIds && Object.fromEntries(pluginIds.map((id) => [id, true]))),
+        // User-selected plugins (from the active agent)
+        ...Object.fromEntries(userPlugins.map((id) => [id, true])),
+        // Always-on builtin tools
+        ...Object.fromEntries(alwaysOnToolIds.map((id) => [id, true])),
+        // System-level rules (may override user selection for specific tools)
         [CloudSandboxManifest.identifier]:
           agentChatConfigSelectors.isCloudSandboxEnabled(agentState),
         [KnowledgeBaseManifest.identifier]: agentSelectors.hasEnabledKnowledgeBases(agentState),

@@ -33,6 +33,12 @@ export const defaultToolIds = [
   CloudSandboxManifest.identifier,
 ];
 
+/**
+ * Tool IDs that are always enabled regardless of user selection.
+ * These are core system tools that the agent needs to function properly.
+ */
+export const alwaysOnToolIds = [LobeToolsManifest.identifier, SkillsManifest.identifier];
+
 export const builtinTools: LobeBuiltinTool[] = [
   {
     discoverable: false,
