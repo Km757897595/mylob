@@ -1,8 +1,10 @@
+import { createTelegramAdapter } from '@chat-adapter/telegram';
 import debug from 'debug';
 
 import { appEnv } from '@/envs/app';
 
-import type { PlatformBot } from '../types';
+import type { PlatformBot, PlatformDescriptor, PlatformMessenger } from '../../types';
+import { TELEGRAM_API_BASE, TelegramRestApi } from './restApi';
 
 const log = debug('lobe-server:bot:gateway:telegram');
 
@@ -37,7 +39,7 @@ export async function setTelegramWebhook(
     params.secret_token = secretToken;
   }
 
-  const response = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+  const response = await fetch(`${TELEGRAM_API_BASE}/bot${botToken}/setWebhook`, {
     body: JSON.stringify(params),
     headers: { 'Content-Type': 'application/json' },
     method: 'POST',
@@ -91,10 +93,9 @@ export class Telegram implements PlatformBot {
   }
 
   private async deleteWebhook(): Promise<void> {
-    const response = await fetch(
-      `https://api.telegram.org/bot${this.config.botToken}/deleteWebhook`,
-      { method: 'POST' },
-    );
+    const response = await fetch(`${TELEGRAM_API_BASE}/bot${this.config.botToken}/deleteWebhook`, {
+      method: 'POST',
+    });
 
     if (!response.ok) {
       const text = await response.text();
@@ -104,3 +105,61 @@ export class Telegram implements PlatformBot {
     log('TelegramBot appId=%s webhook deleted', this.applicationId);
   }
 }
+
+// --------------- Platform Descriptor ---------------
+
+function extractChatId(platformThreadId: string): string {
+  return platformThreadId.split(':')[1];
+}
+
+function parseTelegramMessageId(compositeId: string): number {
+  const colonIdx = compositeId.lastIndexOf(':');
+  return colonIdx !== -1 ? Number(compositeId.slice(colonIdx + 1)) : Number(compositeId);
+}
+
+function createTelegramMessenger(telegram: TelegramRestApi, chatId: string): PlatformMessenger {
+  return {
+    createMessage: (content) => telegram.sendMessage(chatId, content).then(() => {}),
+    editMessage: (messageId, content) =>
+      telegram.editMessageText(chatId, parseTelegramMessageId(messageId), content),
+    removeReaction: (messageId) =>
+      telegram.removeMessageReaction(chatId, parseTelegramMessageId(messageId)),
+    triggerTyping: () => telegram.sendChatAction(chatId, 'typing'),
+  };
+}
+
+export const telegramDescriptor: PlatformDescriptor = {
+  platform: 'telegram',
+  charLimit: 4000,
+  persistent: false,
+  handleDirectMessages: true,
+  requiredCredentials: ['botToken'],
+
+  extractChatId,
+  parseMessageId: parseTelegramMessageId,
+
+  createMessenger(credentials, platformThreadId) {
+    const telegram = new TelegramRestApi(credentials.botToken);
+    const chatId = extractChatId(platformThreadId);
+    return createTelegramMessenger(telegram, chatId);
+  },
+
+  createAdapter(credentials) {
+    return {
+      telegram: createTelegramAdapter({
+        botToken: credentials.botToken,
+        secretToken: credentials.secretToken,
+      }),
+    };
+  },
+
+  async onBotRegistered({ applicationId, credentials }) {
+    const baseUrl = (credentials.webhookProxyUrl || appEnv.APP_URL || '').replace(/\/$/, '');
+    const webhookUrl = `${baseUrl}/api/agent/webhooks/telegram/${applicationId}`;
+    await setTelegramWebhook(credentials.botToken, webhookUrl, credentials.secretToken).catch(
+      (err) => {
+        log('Failed to set Telegram webhook for appId=%s: %O', applicationId, err);
+      },
+    );
+  },
+};
