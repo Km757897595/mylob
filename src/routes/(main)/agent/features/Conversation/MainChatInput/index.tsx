@@ -45,8 +45,7 @@ const MainChatInput = memo(() => {
       rightActions={rightActions}
       {...(isDevMode
         ? { sendMenu: { items: sendMenuItems } }
-        : { sendButtonProps: { shape: 'round' } }
-      )}
+        : { sendButtonProps: { shape: 'round' } })}
       onEditorReady={(instance) => {
         // Sync to global ChatStore for compatibility with other features
         useChatStore.setState({ mainInputEditor: instance });

@@ -80,12 +80,7 @@ export const List: FC<ListProps> = ({
   }, [listHeight, activeKey]);
 
   return (
-    <Flexbox
-      className={styles.list}
-      flex={1}
-      ref={listRef}
-      style={{ height: listHeight }}
-    >
+    <Flexbox className={styles.list} flex={1} ref={listRef} style={{ height: listHeight }}>
       {listItems.map((item, index) => {
         const itemKey = menuKey(
           'provider' in item && item.provider ? item.provider.id : '',

@@ -5,10 +5,11 @@ import { INSERT_MENTION_COMMAND, ReactMathPlugin, type SlashOptions } from '@lob
 import { Editor, FloatMenu, useEditorState } from '@lobehub/editor/react';
 import { combineKeys } from '@lobehub/ui';
 import { css, cx } from 'antd-style';
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo } from 'react';
 import { useHotkeysContext } from 'react-hotkeys-hook';
 
 import { usePasteFile, useUploadFiles } from '@/components/DragUploadZone';
+import { useIMECompositionEvent } from '@/hooks/useIMECompositionEvent';
 import { useAgentStore } from '@/store/agent';
 import { agentByIdSelectors } from '@/store/agent/selectors';
 import { useUserStore } from '@/store/user';
@@ -46,7 +47,7 @@ const InputEditor = memo<{ defaultRows?: number }>(({ defaultRows = 2 }) => {
   const hotkey = useUserStore(settingsSelectors.getHotkeyById(HotkeyEnum.AddUserMessage));
   const { enableScope, disableScope } = useHotkeysContext();
 
-  const isChineseInput = useRef(false);
+  const { compositionProps, isComposingRef } = useIMECompositionEvent();
 
   const useCmdEnterToSend = useUserStore(preferenceSelectors.useCmdEnterToSend);
 
@@ -192,12 +193,7 @@ const InputEditor = memo<{ defaultRows?: number }>(({ defaultRows = 2 }) => {
       onChange={() => {
         updateMarkdownContent();
       }}
-      onCompositionEnd={() => {
-        isChineseInput.current = false;
-      }}
-      onCompositionStart={() => {
-        isChineseInput.current = true;
-      }}
+      {...compositionProps}
       onContextMenu={async ({ event: e, editor }) => {
         if (isDesktop) {
           e.preventDefault();
@@ -214,7 +210,7 @@ const InputEditor = memo<{ defaultRows?: number }>(({ defaultRows = 2 }) => {
         enableScope(HotkeyEnum.AddUserMessage);
       }}
       onPressEnter={({ event: e }) => {
-        if (e.shiftKey || isChineseInput.current) return;
+        if (e.shiftKey || isComposingRef.current) return;
         // when user like alt + enter to add ai message
         if (e.altKey && hotkey === combineKeys([KeyEnum.Alt, KeyEnum.Enter])) return true;
         const commandKey = isCommandPressed(e);

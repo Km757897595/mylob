@@ -219,7 +219,9 @@ const ProcessingView = memo<{
       </ScrollShadow>
 
       {/* Usage display */}
-      {isDevMode && model && provider && <Usage model={model} provider={provider} usage={accumulatedUsage} />}
+      {isDevMode && model && provider && (
+        <Usage model={model} provider={provider} usage={accumulatedUsage} />
+      )}
     </Flexbox>
   );
 });

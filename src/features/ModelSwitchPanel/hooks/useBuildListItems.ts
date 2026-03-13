@@ -70,14 +70,13 @@ export const useBuildListItems = (
         });
       }
 
-      return modelArray
-        .map((data) => ({
-          data,
-          type:
-            data.providers.length === 1
-              ? ('model-item-single' as const)
-              : ('model-item-multiple' as const),
-        }));
+      return modelArray.map((data) => ({
+        data,
+        type:
+          data.providers.length === 1
+            ? ('model-item-single' as const)
+            : ('model-item-multiple' as const),
+      }));
     } else {
       const items: ListItem[] = [];
 

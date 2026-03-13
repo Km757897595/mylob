@@ -83,7 +83,7 @@ const GroupMessage = memo<GroupMessageProps>(({ id, index, disableEditing, isLat
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
   const addReaction = useConversationStore((s) => s.addReaction);
   const removeReaction = useConversationStore((s) => s.removeReaction);
-  const userId = useUserStore(userProfileSelectors.userId)!
+  const userId = useUserStore(userProfileSelectors.userId)!;
   const reactions: EmojiReaction[] = metadata?.reactions || [];
 
   const handleReactionClick = useCallback(

@@ -62,8 +62,7 @@ const InputArea = () => {
     [],
   );
 
-  const hideStarterList =
-    inputActiveMode && ['agent', 'group', 'write'].includes(inputActiveMode);
+  const hideStarterList = inputActiveMode && ['agent', 'group', 'write'].includes(inputActiveMode);
   const showSuggestQuestions =
     !inputActiveMode || ['agent', 'group', 'write'].includes(inputActiveMode);
 

@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
+import type { UIChatMessage } from './message';
 import type { MessageMetadata } from './message/common';
 import { ChatToolPayloadSchema, MessageMetadataSchema } from './message/common';
-import type { UIChatMessage } from './message';
-import type { CreateMessageParams } from './message/ui/params';
-import type { PageSelection } from './message/ui/params';
+import type { CreateMessageParams, PageSelection } from './message/ui/params';
 import { PageSelectionSchema } from './message/ui/params';
 import type { OpenAIChatMessage } from './openai/chat';
 import type { LobeUniformTool } from './tool';
@@ -24,11 +23,10 @@ export interface SendNewMessage {
   parentId?: string;
 }
 
-export interface SendPreloadMessage
-  extends Omit<
-    Pick<CreateMessageParams, 'content' | 'metadata' | 'plugin' | 'tool_call_id' | 'tools'>,
-    'metadata'
-  > {
+export interface SendPreloadMessage extends Omit<
+  Pick<CreateMessageParams, 'content' | 'metadata' | 'plugin' | 'tool_call_id' | 'tools'>,
+  'metadata'
+> {
   metadata?: MessageMetadata;
   role: 'assistant' | 'tool';
 }
@@ -71,8 +69,8 @@ export interface SendMessageServerParams {
     title?: string;
     topicMessageIds?: string[];
   };
-  preloadMessages?: SendPreloadMessage[];
   newUserMessage: SendNewMessage;
+  preloadMessages?: SendPreloadMessage[];
   sessionId?: string;
   threadId?: string;
   // if there is activeTopicId，then add topicId to message
