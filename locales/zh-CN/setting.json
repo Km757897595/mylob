@@ -567,6 +567,8 @@
   "settingSystem.oauth.signout.success": "退出登录成功",
   "settingSystem.title": "系统设置",
   "settingSystemTools.autoSelectDesc": "系统会自动选择最优的可用工具",
+  "settingSystemTools.category.browserAutomation": "浏览器自动化",
+  "settingSystemTools.category.browserAutomation.desc": "用于无头浏览器自动化和网页交互的工具",
   "settingSystemTools.category.contentSearch": "内容搜索",
   "settingSystemTools.category.contentSearch.desc": "用于在文件内搜索文本内容的工具",
   "settingSystemTools.category.fileSearch": "文件搜索",
@@ -580,6 +582,7 @@
   "settingSystemTools.status.unavailable": "不可用",
   "settingSystemTools.title": "系统工具",
   "settingSystemTools.tools.ag.desc": "The Silver Searcher - 快速代码搜索工具",
+  "settingSystemTools.tools.agentBrowser.desc": "Agent-browser - 面向AI代理的无头浏览器自动化命令行工具",
   "settingSystemTools.tools.fd.desc": "fd - 快速且用户友好的 find 替代品",
   "settingSystemTools.tools.find.desc": "Unix find - 标准文件搜索命令",
   "settingSystemTools.tools.grep.desc": "GNU grep - 标准文本搜索工具",
@@ -862,7 +865,13 @@
   "tools.plugins.management": "技能管理",
   "tools.plugins.noEnabled": "暂无启用技能",
   "tools.plugins.store": "添加技能",
+  "tools.search": "搜索技能...",
+  "tools.skillActivateMode.auto.desc": "AI 可自主激活工具、运行技能，并从商店安装新技能",
+  "tools.skillActivateMode.auto.title": "自动",
+  "tools.skillActivateMode.manual.desc": "仅用户选择的工具和技能对 AI 可用",
+  "tools.skillActivateMode.manual.title": "手动",
+  "tools.skillActivateMode.title": "激活方式",
   "tools.tabs.all": "全部",
   "tools.tabs.installed": "已启用",
-  "tools.title": "扩展技能"
+  "tools.title": "技能"
 }
