@@ -95,6 +95,7 @@ const InputArea = () => {
             agentId={inboxAgentId}
             allowExpand={false}
             leftActions={leftActions}
+            slashPlacement="bottom"
             chatInputEditorRef={(instance) => {
               if (!instance) return;
               useChatStore.setState({ mainInputEditor: instance });
