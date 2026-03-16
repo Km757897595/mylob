@@ -60,6 +60,9 @@ export default {
   'downgradePlans.title': 'Switch to {{plan}}',
   'credits.autoTopUp.currentBalance': 'Current Balance',
   'credits.autoTopUp.desc': 'Ensure your credits never run out',
+  'credits.autoTopUp.noPaymentMethodHint':
+    'No payment method on file. Auto top-up needs a saved card to charge automatically.',
+  'credits.autoTopUp.setupPaymentMethod': 'Add Payment Method',
   'credits.autoTopUp.monthlyLimit': 'Monthly Limit',
   'credits.autoTopUp.monthlyLimitDesc':
     'Maximum amount that can be auto-charged per month. Leave empty for no limit',
@@ -322,6 +325,9 @@ export default {
   'qa.list.limit.a':
     '{{cloud}} subscription plans are divided into {{starter}}, {{premium}} and {{ultimate}}, each providing different computing credits. If your current plan credits are insufficient, we recommend upgrading. You can also purchase credit packages on the <fundsLink>"{{funds}}"</fundsLink> page for pay-as-you-go usage. Alternatively, you can set up a custom model API key to use API credits purchased from other sources.',
   'qa.list.limit.q': 'What if I run out of computing credits?',
+  'qa.list.highUsage.a':
+    'Credit consumption depends heavily on conversation length. As a conversation grows, each new message sends the entire history as input tokens, which increases cost significantly. We recommend starting a new conversation when topics change. Also, if there is a long gap between messages, the prompt cache may expire, causing a spike in cost. Some models like the Gemini Pro series use tiered pricing — input beyond 200K tokens is charged at double the rate.',
+  'qa.list.highUsage.q': 'Why are my credits being consumed faster than expected?',
   'qa.list.management.a':
     'On the {{subscribe}} page, you can "Upgrade / Downgrade" your current subscription plan, or switch between yearly and monthly billing. Through "{{usage}}-{{management}}" you can go to Stripe for subscription management, and you can cancel your subscription at any time. After cancellation, you will be automatically downgraded to the free version when your current plan expires.',
   'qa.list.management.q': 'How do I change or cancel my subscription?',
@@ -423,7 +429,7 @@ export default {
   'switchToYearly.title': 'Switch to Yearly Billing',
   'tab.billing': 'Billing Management',
   'tab.credits': 'Credits Management',
-  'tab.plans': 'Subscription Plans',
+  'tab.plans': 'Plans',
   'tab.referral': 'Referral Rewards',
   'tab.spend': 'Credits Details',
   'tab.usage': 'Usage Statistics',
