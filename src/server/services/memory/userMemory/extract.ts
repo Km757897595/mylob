@@ -22,6 +22,7 @@ import {
   type Embeddings,
   type GenerateObjectPayload,
   type LLMRoleType,
+  type ModelRuntimeHooks,
   type OpenAIChatMessage,
 } from '@lobechat/model-runtime';
 import { ModelRuntime } from '@lobechat/model-runtime';
@@ -37,14 +38,15 @@ import {
   tracer,
 } from '@lobechat/observability-otel/modules/memory-user-memory';
 import { attributesCommon } from '@lobechat/observability-otel/node';
-import {
-  type AiProviderRuntimeState,
-  type ChatTopicMetadata,
-  type IdentityMemoryDetail,
-  type MemoryExtractionAgentCallTrace,
-  type MemoryExtractionTraceError,
-  type MemoryExtractionTracePayload,
+import type {
+  AiProviderRuntimeState,
+  ChatTopicMetadata,
+  IdentityMemoryDetail,
+  MemoryExtractionAgentCallTrace,
+  MemoryExtractionTraceError,
+  MemoryExtractionTracePayload,
 } from '@lobechat/types';
+import { RequestTrigger } from '@lobechat/types';
 import { type FlowControl } from '@upstash/qstash';
 import { Client } from '@upstash/workflow';
 import debug from 'debug';
@@ -52,6 +54,7 @@ import { and, asc, eq, inArray } from 'drizzle-orm';
 import { join } from 'pathe';
 import { z } from 'zod';
 
+import { getBusinessModelRuntimeHooks } from '@/business/server/model-runtime';
 import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { type ListTopicsForMemoryExtractorCursor } from '@/database/models/topic';
 import { TopicModel } from '@/database/models/topic';
@@ -303,12 +306,14 @@ export type RuntimeResolveOptions = {
   preferred?: {
     providerIds?: string[];
   };
+  userId?: string;
 };
 
 export const resolveRuntimeAgentConfig = (
   agent: MemoryAgentConfig,
   keyVaults?: ProviderKeyVaultMap,
   options?: RuntimeResolveOptions,
+  hooks?: ModelRuntimeHooks,
 ) => {
   const normalizedPreferredProviders = (options?.preferred?.providerIds || [])
     .map(normalizeProvider)
@@ -329,7 +334,7 @@ export const resolveRuntimeAgentConfig = (
         source: 'user-vault' as const,
       });
 
-      return ModelRuntime.initializeWithProvider(provider, {});
+      return ModelRuntime.initializeWithProvider(provider, { userId: options?.userId }, hooks);
     }
 
     const { apiKey: userApiKey, baseURL: userBaseURL } = extractCredentialsFromVault(
@@ -354,6 +359,7 @@ export const resolveRuntimeAgentConfig = (
     return ModelRuntime.initializeWithProvider(provider, {
       apiKey: userApiKey,
       baseURL: userBaseURL,
+      userId: options?.userId,
     });
   }
 
@@ -367,6 +373,7 @@ export const resolveRuntimeAgentConfig = (
   return ModelRuntime.initializeWithProvider(agent.provider || 'openai', {
     apiKey: agent.apiKey || options?.fallback?.apiKey,
     baseURL: agent.baseURL || options?.fallback?.baseURL,
+    userId: options?.userId,
   });
 };
 
@@ -603,7 +610,7 @@ export class MemoryExtractionExecutor {
             input: requests.map((item) => item.text),
             model,
           },
-          { user: 'memory-extraction' },
+          { metadata: { trigger: RequestTrigger.Memory }, user: 'memory-extraction' },
         );
 
         const vectors = texts.map<Embeddings | null>(() => null);
@@ -1050,11 +1057,14 @@ export class MemoryExtractionExecutor {
       tokenLimit,
     );
 
-    const embeddings = await runtime.embeddings({
-      dimensions: DEFAULT_USER_MEMORY_EMBEDDING_DIMENSIONS,
-      input: [aggregatedContent],
-      model: embeddingModel,
-    });
+    const embeddings = await runtime.embeddings(
+      {
+        dimensions: DEFAULT_USER_MEMORY_EMBEDDING_DIMENSIONS,
+        input: [aggregatedContent],
+        model: embeddingModel,
+      },
+      { metadata: { trigger: RequestTrigger.Memory } },
+    );
 
     const vector = embeddings?.[0];
     if (vector) {
@@ -1978,6 +1988,7 @@ export class MemoryExtractionExecutor {
         baseURL: this.privateConfig.embedding.baseURL,
       },
       preferred: { providerIds: this.embeddingPreferredProviders },
+      userId,
     };
 
     const gatekeeperOptions: RuntimeResolveOptions = {
@@ -1986,6 +1997,7 @@ export class MemoryExtractionExecutor {
         baseURL: this.privateConfig.agentGateKeeper.baseURL,
       },
       preferred: { providerIds: this.gatekeeperPreferredProviders },
+      userId,
     };
 
     const layerExtractorOptions: RuntimeResolveOptions = {
@@ -1994,23 +2006,29 @@ export class MemoryExtractionExecutor {
         baseURL: this.privateConfig.agentLayerExtractor.baseURL,
       },
       preferred: { providerIds: this.layerPreferredProviders },
+      userId,
     };
+
+    const hooks = getBusinessModelRuntimeHooks(userId, 'lobehub');
 
     const runtimes: RuntimeBundle = {
       embeddings: await resolveRuntimeAgentConfig(
         { ...this.privateConfig.embedding },
         keyVaults,
         embeddingOptions,
+        hooks,
       ),
       gatekeeper: await resolveRuntimeAgentConfig(
         { ...this.privateConfig.agentGateKeeper },
         keyVaults,
         gatekeeperOptions,
+        hooks,
       ),
       layerExtractor: await resolveRuntimeAgentConfig(
         { ...this.privateConfig.agentLayerExtractor },
         keyVaults,
         layerExtractorOptions,
+        hooks,
       ),
     };
 
