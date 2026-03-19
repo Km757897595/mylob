@@ -5,7 +5,7 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
   if (process.env.NODE_ENV === 'development') {
     return {
       background_color: '#000000',
-      description: 'LobeHub Development',
+      description: '北测数字',
       display: 'standalone',
       icons: [
         {
@@ -14,8 +14,8 @@ const manifest = async (): Promise<MetadataRoute.Manifest> => {
           type: 'image/png',
         },
       ],
-      name: 'LobeHub',
-      short_name: 'LobeHub',
+      name: '北测数字',
+      short_name: '北测数字',
       start_url: '/',
       theme_color: '#000000',
     };

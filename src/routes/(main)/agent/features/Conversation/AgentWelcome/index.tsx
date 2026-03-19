@@ -2,7 +2,7 @@
 
 import { Avatar, Flexbox, Markdown, Text } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_AVATAR, DEFAULT_INBOX_AVATAR } from '@/const/meta';
@@ -34,7 +34,9 @@ const InboxWelcome = memo(() => {
     return agentSystemRoleMsg;
   }, [openingMessage, agentSystemRoleMsg, meta.description]);
 
-  const displayTitle = isInbox ? 'Lobe AI' : meta.title || t('defaultSession', { ns: 'common' });
+  const displayTitle = isInbox
+    ? '北测数字 AI'
+    : meta.title || t('defaultSession', { ns: 'common' });
 
   return (
     <>
@@ -57,7 +59,7 @@ const InboxWelcome = memo(() => {
         </Text>
         <Flexbox width={'min(100%, 640px)'}>
           <Markdown fontSize={fontSize} variant={'chat'}>
-            {isInbox ? t('guide.defaultMessageWithoutCreate', { appName: 'Lobe AI' }) : message}
+            {isInbox ? t('guide.defaultMessageWithoutCreate', { appName: '北测数字 AI' }) : message}
           </Markdown>
         </Flexbox>
         {openingQuestions.length > 0 && (

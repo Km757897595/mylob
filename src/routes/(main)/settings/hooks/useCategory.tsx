@@ -11,7 +11,6 @@ import {
   EllipsisIcon,
   EthernetPort,
   Gift,
-  Info,
   KeyboardIcon,
   KeyIcon,
   Map,
@@ -185,11 +184,6 @@ export const useCategory = () => {
         icon: EllipsisIcon,
         key: SettingsTabs.Advanced,
         label: t('tab.advanced'),
-      },
-      !hideDocs && {
-        icon: Info,
-        key: SettingsTabs.About,
-        label: t('tab.about'),
       },
     ].filter(Boolean) as CategoryItem[];
 

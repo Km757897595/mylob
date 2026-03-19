@@ -1,8 +1,6 @@
 'use client';
 
-import { Icon } from '@lobehub/ui';
 import { createStaticStyles, cx, useTheme } from 'antd-style';
-import { Info } from 'lucide-react';
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -105,22 +103,6 @@ const PlatformList = memo<PlatformListProps>(
               </button>
             );
           })}
-        </div>
-        <div style={{ borderTop: `1px solid ${theme.colorBorder}`, padding: 12 }}>
-          <a
-            href="https://lobehub.com/docs/usage/channels/overview"
-            rel="noopener noreferrer"
-            target="_blank"
-            style={{
-              alignItems: 'center',
-              color: theme.colorTextSecondary,
-              display: 'flex',
-              fontSize: 12,
-              gap: 4,
-            }}
-          >
-            <Icon icon={Info} size={'small'} /> {t('channel.documentation')}
-          </a>
         </div>
       </aside>
     );

@@ -19,14 +19,14 @@ import search from './references/search';
 import skill from './references/skill';
 import topic from './references/topic';
 
-export const LobeHubIdentifier = 'lobehub';
+export const LobeHubIdentifier = 'system';
 
 export const LobeHubSkill: BuiltinSkill = {
   content: systemPrompt,
   description:
-    'Manage the LobeHub platform via CLI — knowledge bases, memory, agents, files, search, generation, and more.',
+    'Manage the platform via CLI — knowledge bases, memory, agents, files, search, generation, and more.',
   identifier: LobeHubIdentifier,
-  name: 'LobeHub',
+  name: 'System',
   resources: toResourceMeta({
     'references/agent': agent,
     'references/bot': bot,

@@ -3,7 +3,7 @@
 import { ActionIcon, Avatar, Block, Text } from '@lobehub/ui';
 import { ChevronsUpDownIcon } from 'lucide-react';
 import { type PropsWithChildren } from 'react';
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DEFAULT_AVATAR, DEFAULT_INBOX_AVATAR } from '@/const/meta';
@@ -24,7 +24,7 @@ const Agent = memo<PropsWithChildren>(() => {
     agentSelectors.currentAgentBackgroundColor(s),
   ]);
 
-  const displayTitle = isInbox ? 'Lobe AI' : title || t('defaultSession', { ns: 'common' });
+  const displayTitle = isInbox ? '北测数字 AI' : title || t('defaultSession', { ns: 'common' });
 
   if (isLoading) return <SkeletonItem height={32} padding={0} />;
 

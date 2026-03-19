@@ -124,7 +124,7 @@ const PluginItem = memo<PluginItemProps>(({ identifier }) => {
         category: undefined,
         createdAt: '',
         description: lobehubSkill.description,
-        homepage: lobehubSkill.authorUrl || 'https://lobehub.com',
+        homepage: lobehubSkill.authorUrl || '',
         identifier: lobehubSkill.id,
         manifest: undefined,
         related: [],
@@ -138,12 +138,12 @@ const PluginItem = memo<PluginItemProps>(({ identifier }) => {
     // Check builtin tools (like lobe-cloud-sandbox, lobe-memory, etc.)
     if (builtinTool) {
       return {
-        author: 'LobeHub',
+        author: '北测数字',
         avatar: builtinTool.manifest.meta.avatar || '',
         category: undefined,
         createdAt: '',
         description: builtinTool.manifest.meta.description || '',
-        homepage: 'https://lobehub.com',
+        homepage: '',
         identifier: builtinTool.identifier,
         manifest: undefined,
         related: [],

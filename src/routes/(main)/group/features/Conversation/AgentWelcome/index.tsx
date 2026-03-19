@@ -2,7 +2,7 @@
 
 import { Flexbox, Markdown, Text } from '@lobehub/ui';
 import isEqual from 'fast-deep-equal';
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -68,7 +68,7 @@ const InboxWelcome = memo(() => {
         </Text>
         <Flexbox width={'min(100%, 640px)'}>
           <Markdown fontSize={fontSize} variant={'chat'}>
-            {isInbox ? t('guide.defaultMessageWithoutCreate', { appName: 'Lobe AI' }) : message}
+            {isInbox ? t('guide.defaultMessageWithoutCreate', { appName: '北测数字 AI' }) : message}
           </Markdown>
         </Flexbox>
         {openingQuestions.length > 0 && (

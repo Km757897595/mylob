@@ -67,7 +67,9 @@ const Content = memo(() => {
     [t, isInbox],
   );
 
-  const displayTitle = isInbox ? 'Lobe AI' : meta.title || t('defaultSession', { ns: 'common' });
+  const displayTitle = isInbox
+    ? '北测数字 AI'
+    : meta.title || t('defaultSession', { ns: 'common' });
 
   return (
     <Flexbox

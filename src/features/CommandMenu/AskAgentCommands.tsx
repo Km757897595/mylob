@@ -54,21 +54,21 @@ const AskAgentCommands = memo(() => {
   // Only show when user types "@"
   if (!isAtMention) return null;
 
-  // Check if Lobe AI matches the query
-  const showLobeAI = !mentionQuery || 'lobe ai'.includes(mentionQuery);
+  // Check if 北测数字 AI matches the query
+  const showLobeAI = !mentionQuery || '北测数字 AI'.includes(mentionQuery);
 
   return (
     <Command.Group heading={t('cmdk.mentionAgent')}>
-      {/* @Lobe AI option */}
+      {/* @北测数字 AI option */}
       {showLobeAI && (
         <Command.Item
           value="@lobe-ai"
           onMouseDown={preventDefault}
-          onSelect={() => handleAgentSelect(inboxAgentId, 'Lobe AI', DEFAULT_INBOX_AVATAR)}
+          onSelect={() => handleAgentSelect(inboxAgentId, '北测数字 AI', DEFAULT_INBOX_AVATAR)}
         >
           <Avatar emojiScaleWithBackground avatar={DEFAULT_INBOX_AVATAR} shape="square" size={18} />
           <div className={styles.itemContent}>
-            <div className={styles.itemLabel}>@Lobe AI</div>
+            <div className={styles.itemLabel}>@北测数字 AI</div>
           </div>
         </Command.Item>
       )}

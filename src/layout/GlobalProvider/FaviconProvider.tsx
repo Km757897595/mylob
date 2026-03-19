@@ -1,7 +1,10 @@
 'use client';
 
+import { BRANDING_LOGO_URL } from '@lobechat/business-const';
 import { type ReactNode } from 'react';
 import { createContext, memo, use, useCallback, useMemo, useState } from 'react';
+
+import { isCustomBranding } from '@/const/version';
 
 export type FaviconState = 'default' | 'done' | 'error' | 'progress';
 
@@ -42,6 +45,10 @@ const stateToFileName: Record<FaviconState, string> = {
 };
 
 const getFaviconPath = (state: FaviconState, isDev: boolean, size?: '32x32'): string => {
+  // Use custom branding logo for default state
+  if (isCustomBranding && state === 'default' && BRANDING_LOGO_URL) {
+    return BRANDING_LOGO_URL;
+  }
   const devSuffix = isDev ? '-dev' : '';
   const stateSuffix = stateToFileName[state];
   const sizeSuffix = size ? `-${size}` : '';

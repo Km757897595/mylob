@@ -54,7 +54,7 @@ describe('useAgentMeta', () => {
     expect(result.current.avatar).toBe('agent-avatar.png');
   });
 
-  it('should return Lobe AI title for builtin inbox agent, preserving avatar from backend', () => {
+  it('should return 北测数字 AI title for builtin inbox agent, preserving avatar from backend', () => {
     const mockInboxAgentId = 'inbox-agent-id';
     const mockMeta = {
       avatar: '/icons/icon-lobe.png', // Avatar from backend (merged from builtin-agents package)
@@ -83,14 +83,14 @@ describe('useAgentMeta', () => {
 
     const { result } = renderHook(() => useAgentMeta());
 
-    // Should override title with Lobe AI, but preserve avatar from backend
+    // Should override title with 北测数字 AI, but preserve avatar from backend
     expect(result.current.avatar).toBe('/icons/icon-lobe.png');
-    expect(result.current.title).toBe('Lobe AI');
+    expect(result.current.title).toBe('北测数字 AI');
     // Should preserve other properties
     expect(result.current.description).toBe('Inbox description');
   });
 
-  it('should return Lobe AI title for page agent (builtin), preserving avatar from backend', () => {
+  it('should return 北测数字 AI title for page agent (builtin), preserving avatar from backend', () => {
     const mockPageAgentId = 'page-agent-id';
     const mockMeta = {
       avatar: '/icons/icon-lobe.png', // Avatar from backend (merged from builtin-agents package)
@@ -116,9 +116,9 @@ describe('useAgentMeta', () => {
 
     const { result } = renderHook(() => useAgentMeta());
 
-    // Should override title with Lobe AI, but preserve avatar from backend
+    // Should override title with 北测数字 AI, but preserve avatar from backend
     expect(result.current.avatar).toBe('/icons/icon-lobe.png');
-    expect(result.current.title).toBe('Lobe AI');
+    expect(result.current.title).toBe('北测数字 AI');
   });
 
   it('should handle empty agentMap gracefully', () => {
