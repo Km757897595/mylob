@@ -6,7 +6,12 @@ import { migrate as neonMigrate } from 'drizzle-orm/neon-serverless/migrator';
 import { migrate as nodeMigrate } from 'drizzle-orm/node-postgres/migrator';
 
 // @ts-ignore tsgo handle esm import cjs and compatibility issues
-import { DB_FAIL_INIT_HINT, DUPLICATE_EMAIL_HINT, PGVECTOR_HINT } from './errorHint';
+import {
+  DB_FAIL_INIT_HINT,
+  DUPLICATE_EMAIL_HINT,
+  PG_SEARCH_HINT,
+  PGVECTOR_HINT,
+} from './errorHint';
 
 // Load environment variables in priority order:
 // 1. .env (lowest priority)
@@ -46,7 +51,9 @@ if (connectionString) {
 
     const constraint = (err as { constraint?: string })?.constraint;
 
-    if (errMsg.includes('extension "vector" is not available')) {
+    if (errMsg.includes('extension "pg_search" is not available')) {
+      console.info(PG_SEARCH_HINT);
+    } else if (errMsg.includes('extension "vector" is not available')) {
       console.info(PGVECTOR_HINT);
     } else if (constraint === 'users_email_unique' || errMsg.includes('users_email_unique')) {
       console.info(DUPLICATE_EMAIL_HINT);

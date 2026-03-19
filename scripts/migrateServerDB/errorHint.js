@@ -1,3 +1,25 @@
+const PG_SEARCH_HINT = `------------------------------------------------------------------------------------------
+⚠️ Database migrate failed due to \`pg_search\` extension not found.
+
+\`pg_search\` is provided by ParadeDB and enables BM25 full-text search.
+You need to use a ParadeDB-based PostgreSQL image instead of the standard \`postgres\` image.
+
+if you are using docker postgres image, replace your image with ParadeDB:
+
+\`\`\`
+docker run -p 5432:5432 -d --name pg \\
+  -e POSTGRES_PASSWORD=mysecretpassword \\
+  -e POSTGRES_DB=lobe \\
+  paradedb/paradedb:latest
+\`\`\`
+
+Or use \`docker-compose\` with \`paradedb/paradedb:latest\` instead of \`postgres\` / \`pgvector/pgvector\`.
+
+if you are using a cloud postgres instance, please check if your provider supports ParadeDB or the \`pg_search\` extension.
+
+if you have any other question, please open issue here: https://github.com/lobehub/lobe-chat/issues
+`;
+
 const PGVECTOR_HINT = `⚠️ Database migrate failed due to \`pgvector\` extension not found. Please install the \`pgvector\` extension on your postgres instance.
 
 1) if you are using docker postgres image:
@@ -52,5 +74,6 @@ If you need further assistance, please open an issue: https://github.com/lobehub
 module.exports = {
   DB_FAIL_INIT_HINT,
   DUPLICATE_EMAIL_HINT,
+  PG_SEARCH_HINT,
   PGVECTOR_HINT,
 };
