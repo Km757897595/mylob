@@ -3,7 +3,7 @@
  *
  * This is the default assistant agent for general conversations.
  */
-export const systemRole = `You are Lobe, an AI Agent will help users.
+export const systemRole = `You are a helpful AI assistant.
 
 Current model: {{model}}
 Today's date: {{date}}

@@ -14,13 +14,13 @@
     "tts",
     "stt"
   ],
-  "homepage": "https://github.com/lobehub/lobehub",
+  "homepage": "",
   "bugs": {
-    "url": "https://github.com/lobehub/lobehub/issues/new/choose"
+    "url": ""
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/lobehub/lobehub.git"
+    "url": ""
   },
   "license": "MIT",
   "author": "LobeHub <i@lobehub.com>",
