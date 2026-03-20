@@ -29,7 +29,7 @@ export const AuthCard = memo<AuthCardProps>(({ children, title, subtitle, footer
       <Flexbox gap={4} paddingBlock={32}>
         {children}
       </Flexbox>
-      {footer}
+      {/* {footer} */}
     </Flexbox>
   );
 });

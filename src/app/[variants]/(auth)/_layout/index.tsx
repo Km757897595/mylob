@@ -3,25 +3,18 @@
 import { COPYRIGHT_FULL } from '@lobechat/business-const';
 import { Center, Flexbox, Text } from '@lobehub/ui';
 import { Divider } from 'antd';
-import { cx } from 'antd-style';
 import { type FC, type PropsWithChildren } from 'react';
 
 import { ProductLogo } from '@/components/Branding';
-import { useIsDark } from '@/hooks/useIsDark';
 
 import AuthLangButton from './AuthLangButton';
 import AuthThemeButton from './AuthThemeButton';
 import { styles } from './style';
 
 const AuthContainer: FC<PropsWithChildren> = ({ children }) => {
-  const isDarkMode = useIsDark();
   return (
     <Flexbox className={styles.outerContainer} height={'100%'} padding={8} width={'100%'}>
-      <Flexbox
-        className={cx(isDarkMode ? styles.innerContainerDark : styles.innerContainerLight)}
-        height={'100%'}
-        width={'100%'}
-      >
+      <Flexbox className={styles.innerContainer} height={'100%'} width={'100%'}>
         <Flexbox
           horizontal
           align={'center'}

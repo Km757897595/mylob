@@ -6,8 +6,7 @@ import { ConfigProvider, ThemeProvider } from '@lobehub/ui';
 import { App } from 'antd';
 import * as motion from 'motion/react-m';
 import Link from 'next/link';
-import { type PropsWithChildren } from 'react';
-import { memo } from 'react';
+import { memo, type PropsWithChildren, useEffect, useState } from 'react';
 
 import AntdStaticMethods from '@/components/AntdStaticMethods';
 import { useIsDark } from '@/hooks/useIsDark';
@@ -18,15 +17,23 @@ interface AuthThemeLiteProps extends PropsWithChildren {
 }
 
 const AuthThemeLite = memo<AuthThemeLiteProps>(({ children, globalCDN }) => {
+  const [mounted, setMounted] = useState(false);
   const isDark = useIsDark();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Avoid hydration mismatch: on server and first client render, appearance is
+  // undefined so ThemeProvider falls back to defaultAppearance ('light').
+  // After mount, the controlled value kicks in with the real theme from next-themes.
   const currentAppearance = isDark ? 'dark' : 'light';
 
   return (
     <ThemeProvider
-      appearance={currentAppearance}
+      appearance={mounted ? currentAppearance : undefined}
       className={'auth-layout'}
-      defaultAppearance={currentAppearance}
-      defaultThemeMode={currentAppearance}
+      defaultAppearance={'light'}
       style={{ height: '100%' }}
       theme={{
         cssVar: { key: 'lobe-vars' },

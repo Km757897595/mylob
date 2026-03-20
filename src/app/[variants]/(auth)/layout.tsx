@@ -7,6 +7,8 @@ import { type DynamicLayoutProps } from '@/types/next';
 import AuthContainer from './_layout';
 import AuthGlobalProvider from './_layout/AuthGlobalProvider';
 
+export { generateMetadata } from '../metadata';
+
 const AuthLayout = async ({ children, params }: PropsWithChildren<DynamicLayoutProps>) => {
   const { variants } = await params;
 

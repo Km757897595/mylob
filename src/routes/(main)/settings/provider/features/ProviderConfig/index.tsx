@@ -1,19 +1,10 @@
 'use client';
 
 import { ENABLE_BUSINESS_FEATURES } from '@lobechat/business-const';
-import { AES_GCM_URL, BASE_PROVIDER_DOC_URL, FORM_STYLE } from '@lobechat/const';
+import { AES_GCM_URL, FORM_STYLE } from '@lobechat/const';
 import { ProviderCombine } from '@lobehub/icons';
 import { type FormGroupItemType, type FormItemProps } from '@lobehub/ui';
-import {
-  Avatar,
-  Center,
-  Flexbox,
-  Form,
-  Icon,
-  Skeleton,
-  stopPropagation,
-  Tooltip,
-} from '@lobehub/ui';
+import { Avatar, Flexbox, Form, Icon, Skeleton } from '@lobehub/ui';
 import { useDebounceFn } from 'ahooks';
 import { Form as AntdForm, Switch } from 'antd';
 import { createStaticStyles, cssVar, cx, responsive } from 'antd-style';
@@ -21,7 +12,6 @@ import { Loader2Icon, LockIcon } from 'lucide-react';
 import { type ReactNode } from 'react';
 import { memo, useCallback, useLayoutEffect, useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import urlJoin from 'url-join';
 import { z } from 'zod';
 
 import { FormInput, FormPassword } from '@/components/FormInput';
@@ -445,7 +435,7 @@ const ProviderConfig = memo<ProviderConfigProps>(
         ) : (
           <>
             {title ?? <ProviderCombine provider={id} size={24} />}
-            <Tooltip title={t('providerModels.config.helpDoc')}>
+            {/* <Tooltip title={t('providerModels.config.helpDoc')}>
               <a
                 href={urlJoin(BASE_PROVIDER_DOC_URL, id)}
                 rel="noreferrer"
@@ -456,7 +446,7 @@ const ProviderConfig = memo<ProviderConfigProps>(
                   ?
                 </Center>
               </a>
-            </Tooltip>
+            </Tooltip> */}
           </>
         )}
       </Flexbox>

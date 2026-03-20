@@ -7,12 +7,11 @@ import { TypewriterEffect } from '@lobehub/ui/awesome';
 import { LoadingDots } from '@lobehub/ui/chat';
 import { Steps, Switch } from 'antd';
 import { cssVar } from 'antd-style';
-import { BrainIcon, HeartHandshakeIcon, PencilRulerIcon, ShieldCheck } from 'lucide-react';
+import { BrainIcon, HeartHandshakeIcon, PencilRulerIcon } from 'lucide-react';
 import { memo, useCallback, useRef, useState } from 'react';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
 import { ProductLogo } from '@/components/Branding';
-import { PRIVACY_URL, TERMS_URL } from '@/const/url';
 import { useUserStore } from '@/store/user';
 
 interface TelemetryStepProps {
@@ -146,7 +145,7 @@ const TelemetryStep = memo<TelemetryStepProps>(({ onNext }) => {
       >
         {t('telemetry.next')}
       </Button>
-      {check && (
+      {/* {check && (
         <Block horizontal align="flex-start" gap={8} variant={'borderless'}>
           <Icon
             icon={ShieldCheck}
@@ -178,7 +177,7 @@ const TelemetryStep = memo<TelemetryStepProps>(({ onNext }) => {
             />
           </Text>
         </Block>
-      )}
+      )} */}
     </Flexbox>
   );
 });
