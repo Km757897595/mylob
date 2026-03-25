@@ -1,8 +1,9 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 
-import { LobeChatDatabase } from '@/database/type';
+import type { LobeChatDatabase } from '@/database/type';
 
-import { RoleItem, permissions, rolePermissions, roles, userRoles } from '../schemas/rbac';
+import type { PermissionItem, RoleItem } from '../schemas/rbac';
+import { permissions, rolePermissions, roles, userRoles } from '../schemas/rbac';
 
 export interface UserPermissionInfo {
   category: string;
@@ -187,6 +188,24 @@ export class RbacModel {
         ),
       )
       .orderBy(userRoles.createdAt);
+  };
+
+  /**
+   * Get all active roles (not user-scoped)
+   */
+  getAllRoles = async (): Promise<RoleItem[]> => {
+    return this.db.select().from(roles).where(eq(roles.isActive, true)).orderBy(roles.name);
+  };
+
+  /**
+   * Get all active permissions ordered by category
+   */
+  getAllPermissions = async (): Promise<PermissionItem[]> => {
+    return this.db
+      .select()
+      .from(permissions)
+      .where(eq(permissions.isActive, true))
+      .orderBy(permissions.category, permissions.code);
   };
 
   /**

@@ -20,5 +20,8 @@ export * from './rbac';
 export * from './relations';
 export * from './session';
 export * from './topic';
+export * from './topicLock';
 export * from './user';
+export * from './userGroup';
 export * from './userMemories';
+export * from './userQuota';

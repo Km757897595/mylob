@@ -8,7 +8,7 @@ import type {
 } from '@lobechat/types';
 import { TRPCError } from '@trpc/server';
 import dayjs from 'dayjs';
-import { and, asc, eq, gt, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, ilike, inArray, or, sql } from 'drizzle-orm';
 import type { PartialDeep } from 'type-fest';
 
 import { merge } from '@/utils/merge';
@@ -297,6 +297,28 @@ export class UserModel {
   static findByIds = async (db: LobeChatDatabase, ids: string[]) => {
     if (ids.length === 0) return [];
     return db.query.users.findMany({ where: inArray(users.id, ids) });
+  };
+
+  static searchUsers = async (db: LobeChatDatabase, keyword: string, limit = 20) => {
+    if (!keyword.trim()) return [];
+    const pattern = `%${keyword.trim()}%`;
+    return db
+      .select({
+        avatar: users.avatar,
+        email: users.email,
+        fullName: users.fullName,
+        id: users.id,
+        username: users.username,
+      })
+      .from(users)
+      .where(
+        or(
+          ilike(users.username, pattern),
+          ilike(users.email, pattern),
+          ilike(users.fullName, pattern),
+        ),
+      )
+      .limit(limit);
   };
 
   static getUserApiKeys = async (

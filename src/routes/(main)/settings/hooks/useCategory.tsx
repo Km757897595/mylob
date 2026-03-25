@@ -15,8 +15,10 @@ import {
   KeyIcon,
   Map,
   PaletteIcon,
+  ShieldCheck,
   Sparkles,
   TerminalSquare,
+  Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -33,8 +35,11 @@ import { useUserStore } from '@/store/user';
 import { userProfileSelectors } from '@/store/user/slices/auth/selectors';
 import { userGeneralSettingsSelectors } from '@/store/user/slices/settings/selectors';
 
+import { useUserPermissions } from './useUserPermissions';
+
 export enum SettingsGroupKey {
   Agent = 'agent',
+  Enterprise = 'enterprise',
   General = 'general',
   Subscription = 'subscription',
   System = 'system',
@@ -57,13 +62,17 @@ export const useCategory = () => {
   const { t: tAuth } = useTranslation('auth');
   const { t: tSubscription } = useTranslation('subscription');
   const mobile = useServerConfigStore((s) => s.isMobile);
-  const { hideDocs, showApiKeyManage } = useServerConfigStore(featureFlagsSelectors);
+  const { enableRBACManagement, enableUserGroups, hideDocs, showApiKeyManage } =
+    useServerConfigStore(featureFlagsSelectors);
   const [avatar, username] = useUserStore((s) => [
     userProfileSelectors.userAvatar(s),
     userProfileSelectors.nickName(s),
   ]);
   const remoteServerUrl = useElectronStore(electronSyncSelectors.remoteServerUrl);
   const isDevMode = useUserStore((s) => userGeneralSettingsSelectors.config(s).isDevMode);
+
+  // 获取用户权限，用于控制企业管理菜单显示
+  const { hasPermission } = useUserPermissions();
 
   const avatarUrl = useMemo(() => {
     if (!avatar) return undefined;
@@ -158,6 +167,30 @@ export const useCategory = () => {
       title: t('group.aiConfig'),
     });
 
+    // Enterprise group (controlled by feature flags + user permissions)
+    // 需要 user:manage 权限才能访问企业管理功能
+    const hasManagePermission = hasPermission('user:manage');
+    if ((enableRBACManagement || enableUserGroups) && hasManagePermission) {
+      const enterpriseItems: CategoryItem[] = [
+        enableRBACManagement && {
+          icon: ShieldCheck,
+          key: SettingsTabs.RBAC,
+          label: t('tab.rbac'),
+        },
+        enableUserGroups && {
+          icon: Users,
+          key: SettingsTabs.UserGroups,
+          label: t('tab.userGroups'),
+        },
+      ].filter(Boolean) as CategoryItem[];
+
+      groups.push({
+        items: enterpriseItems,
+        key: SettingsGroupKey.Enterprise,
+        title: t('group.enterprise'),
+      });
+    }
+
     // System group
     const systemItems: CategoryItem[] = [
       isDesktop && {
@@ -199,6 +232,8 @@ export const useCategory = () => {
     tAuth,
     tSubscription,
     enableBusinessFeatures,
+    enableRBACManagement,
+    enableUserGroups,
     hideDocs,
     mobile,
     showApiKeyManage,

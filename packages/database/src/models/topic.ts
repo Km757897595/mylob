@@ -4,6 +4,8 @@ import { and, count, desc, eq, gt, gte, inArray, isNull, lte, ne, not, or, sql }
 
 import type { TopicItem } from '../schemas';
 import { agents, agentsToSessions, messagePlugins, messages, topics } from '../schemas';
+import { topicLocks } from '../schemas/topicLock';
+import { users } from '../schemas/user';
 import type { LobeChatDatabase } from '../type';
 import { sanitizeBm25Query } from '../utils/bm25';
 import { genEndDateWhere, genRangeWhere, genStartDateWhere, genWhere } from '../utils/genWhere';
@@ -727,6 +729,118 @@ export class TopicModel {
         cursorCondition,
       ),
     });
+  };
+
+  // ---- 用户组话题查询 ----
+
+  /**
+   * 查询某个用户组的所有话题（含锁定状态和创建者信息）
+   * 组内所有成员可调用，不限制 userId
+   */
+  findByUserGroupId = async (
+    userGroupId: string,
+    params?: { current?: number; pageSize?: number },
+  ) => {
+    const page = params?.current ?? 0;
+    const size = params?.pageSize ?? 50;
+    return this.db
+      .select({
+        createdAt: topics.createdAt,
+        creator: {
+          avatar: users.avatar,
+          fullName: users.fullName,
+          id: users.id,
+        },
+        id: topics.id,
+        lock: {
+          expiresAt: topicLocks.expiresAt,
+          lockedAt: topicLocks.lockedAt,
+          lockedBy: topicLocks.lockedBy,
+        },
+        title: topics.title,
+        updatedAt: topics.updatedAt,
+      })
+      .from(topics)
+      .leftJoin(
+        topicLocks,
+        and(eq(topicLocks.topicId, topics.id), sql`${topicLocks.expiresAt} > NOW()`),
+      )
+      .leftJoin(users, eq(users.id, topics.userId))
+      .where(eq(topics.userGroupId, userGroupId))
+      .orderBy(desc(topics.updatedAt))
+      .limit(size)
+      .offset(page * size);
+  };
+
+  /**
+   * 在用户组内创建话题
+   */
+  createGroupTopic = async (params: { agentId?: string; title: string; userGroupId: string }) => {
+    const [topic] = await this.db
+      .insert(topics)
+      .values({
+        agentId: params.agentId || null,
+        id: this.genId(),
+        title: params.title,
+        userGroupId: params.userGroupId,
+        userId: this.userId,
+      })
+      .returning();
+    return topic;
+  };
+
+  // ---- 话题锁定（原子操作，防竞态） ----
+
+  /**
+   * 尝试锁定话题。使用 INSERT ... ON CONFLICT 实现原子抢锁。
+   * 只有当锁不存在或已过期或由自己持有时才能成功。
+   */
+  tryLockTopic = async (topicId: string): Promise<{ lockedBy?: string; success: boolean }> => {
+    const result = await this.db.execute(sql`
+      INSERT INTO topic_locks (topic_id, locked_by, locked_at, expires_at)
+      VALUES (${topicId}, ${this.userId}, NOW(), NOW() + INTERVAL '5 minutes')
+      ON CONFLICT (topic_id) DO UPDATE
+      SET locked_by = ${this.userId},
+          locked_at = NOW(),
+          expires_at = NOW() + INTERVAL '5 minutes'
+      WHERE topic_locks.expires_at < NOW()
+         OR topic_locks.locked_by = ${this.userId}
+      RETURNING locked_by
+    `);
+
+    if (result.rows && result.rows.length > 0) {
+      return { success: true };
+    }
+
+    // 锁定失败，查询当前持有者
+    const [lock] = await this.db
+      .select({ lockedBy: topicLocks.lockedBy })
+      .from(topicLocks)
+      .where(eq(topicLocks.topicId, topicId))
+      .limit(1);
+
+    return { lockedBy: lock?.lockedBy, success: false };
+  };
+
+  /**
+   * 心跳续期（每 2 分钟调用一次，锁 5 分钟过期）
+   */
+  renewLock = async (topicId: string): Promise<boolean> => {
+    const result = await this.db
+      .update(topicLocks)
+      .set({ expiresAt: sql`NOW() + INTERVAL '5 minutes'` })
+      .where(and(eq(topicLocks.topicId, topicId), eq(topicLocks.lockedBy, this.userId)));
+
+    return (result?.rowCount ?? 0) > 0;
+  };
+
+  /**
+   * 释放锁（只能解锁自己持有的）
+   */
+  releaseLock = async (topicId: string) => {
+    return this.db
+      .delete(topicLocks)
+      .where(and(eq(topicLocks.topicId, topicId), eq(topicLocks.lockedBy, this.userId)));
   };
 
   countTopicsForMemoryExtractor = async (

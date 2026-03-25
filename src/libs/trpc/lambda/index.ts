@@ -9,6 +9,7 @@
  */
 
 import { openTelemetry } from '../middleware/openTelemetry';
+import { requirePermission } from '../middleware/rbacAuth';
 import { userAuth } from '../middleware/userAuth';
 import { trpc } from './init';
 import { oidcAuth } from './middleware/oidcAuth';
@@ -29,6 +30,10 @@ export const publicProcedure = baseProcedure;
 
 // procedure that asserts that the user is logged in
 export const authedProcedure = baseProcedure.use(oidcAuth).use(userAuth);
+
+// Procedure that requires a specific RBAC permission, usage: rbacProcedure('user:manage').query(...)
+export const rbacProcedure = (permission: string) =>
+  authedProcedure.use(requirePermission(permission));
 
 /**
  * Create a server-side caller

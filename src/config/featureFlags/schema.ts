@@ -28,6 +28,10 @@ export const FeatureFlagsSchema = z.object({
 
   rag_eval: FeatureFlagValue.optional(),
 
+  // enterprise management
+  rbac_management: FeatureFlagValue.optional(),
+  user_groups: FeatureFlagValue.optional(),
+
   // internal flag
   cloud_promotion: FeatureFlagValue.optional(),
 
@@ -74,6 +78,8 @@ export const DEFAULT_FEATURE_FLAGS: IFeatureFlags = {
 
   knowledge_base: true,
   rag_eval: false,
+  rbac_management: false,
+  user_groups: false,
 
   cloud_promotion: false,
 
@@ -106,6 +112,8 @@ export const mapFeatureFlagsEnvToState = (config: IFeatureFlags, userId?: string
 
     enableKnowledgeBase: evaluateFeatureFlag(config.knowledge_base, userId),
     enableRAGEval: evaluateFeatureFlag(config.rag_eval, userId),
+    enableRBACManagement: evaluateFeatureFlag(config.rbac_management, userId),
+    enableUserGroups: evaluateFeatureFlag(config.user_groups, userId),
 
     showCloudPromotion: evaluateFeatureFlag(config.cloud_promotion, userId),
 

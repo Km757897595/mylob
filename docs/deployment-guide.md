@@ -19,7 +19,7 @@
 
 ## 二、目录结构
 
-```
+```text
 /opt/lobehub/
 ├── docker-compose.yml          # 主编排文件
 ├── .env                        # 环境变量配置
@@ -266,7 +266,7 @@ python main.py --listen 0.0.0.0 --port 8000
 
 `.env` 配置：
 
-```
+```env
 ENABLED_COMFYUI=1
 COMFYUI_BASE_URL=http://host.docker.internal:8000
 ```
@@ -376,7 +376,7 @@ server {
 
 配置 HTTPS 后，更新 `.env`：
 
-```
+```env
 APP_URL=https://ai.your-domain.com
 S3_ENDPOINT=https://ai.your-domain.com/s3
 AUTH_TRUSTED_ORIGINS=https://ai.your-domain.com
@@ -497,3 +497,85 @@ docker compose logs -f lobe
 | `market`          | `false` | 助手市场                 |
 | `check_updates`   | `true`  | 检查更新（内网建议关闭） |
 | `cloud_promotion` | `false` | 云端推广（建议关闭）     |
+| `rbac_management` | `false` | 企业角色与权限管理       |
+| `user_groups`     | `false` | 用户分组管理             |
+
+---
+
+## 八、企业管理功能初始化
+
+启用 `rbac_management` 和 `user_groups` 后，需完成以下初始化步骤。
+
+### 8.1 运行数据库迁移
+
+企业管理功能依赖额外的数据表，首次部署需执行迁移：
+
+```bash
+bunx drizzle-kit migrate
+```
+
+迁移将创建以下表：`rbac_roles`、`rbac_permissions`、`rbac_role_permissions`、`rbac_user_roles`、`user_groups`、`user_group_members`、`user_hierarchy`、`topic_group_shares`、`topic_locks`、`user_quotas`。
+
+迁移完成后，单独运行种子数据脚本补充预定义角色和权限：
+
+**Linux / macOS**：
+
+```bash
+DATABASE_URL=postgresql://... bunx tsx scripts/seed-rbac-data.ts
+```
+
+**Windows PowerShell**：
+
+```powershell
+$env:DATABASE_URL="postgresql://..."; bunx tsx scripts/seed-rbac-data.ts
+```
+
+> 若迁移时已自动写入种子数据（可用 `SELECT count(*) FROM rbac_roles;` 验证，结果为 3），则跳过此步骤。该脚本幂等，重复执行安全。
+
+### 8.2 指定超级管理员
+
+迁移完成后，使用初始化脚本为指定用户赋予 `admin` 角色：
+
+**Linux / macOS**：
+
+```bash
+DATABASE_URL=postgresql://... bunx tsx scripts/init-super-admin.ts <userId>
+```
+
+**Windows PowerShell**：
+
+```powershell
+$env:DATABASE_URL="postgresql://..."; bunx tsx scripts/init-super-admin.ts <userId>
+```
+
+**示例（Linux）**：
+
+```bash
+DATABASE_URL=postgresql://postgres:password@localhost:5432/lobechat \
+  bunx tsx scripts/init-super-admin.ts user_123abc
+```
+
+**示例（PowerShell）**：
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres:password@localhost:5432/lobechat"; bunx tsx scripts/init-super-admin.ts user_123abc
+```
+
+脚本幂等，可重复执行。
+
+**预期输出**：
+
+```text
+✓ 已成功为用户 user_123abc 赋予 admin 角色（超级管理员）
+✅ 初始化完成！
+```
+
+> **说明**：超级管理员（`admin` 角色）在 Settings → Enterprise 中可为其他用户分配 `manager` 或 `user` 角色，普通用户默认不可见 Enterprise 菜单。
+
+### 8.3 预定义角色与权限
+
+| 角色      | 说明       | 权限                                                                                                   |
+| --------- | ---------- | ------------------------------------------------------------------------------------------------------ |
+| `admin`   | 超级管理员 | 所有权限（7 个）                                                                                       |
+| `manager` | 部门管理员 | `chat:create`、`image:generate`、`video:generate`、`kb:manage`、`topic:view_subordinate`、`topic:lock` |
+| `user`    | 普通用户   | `chat:create`、`image:generate`、`video:generate`、`kb:manage`                                         |

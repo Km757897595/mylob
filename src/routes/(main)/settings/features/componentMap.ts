@@ -57,6 +57,13 @@ export const componentMap = {
     loading: loading('Settings > Skill'),
   }),
 
+  [SettingsTabs.RBAC]: dynamic(() => import('../rbac'), {
+    loading: loading('Settings > RBAC'),
+  }),
+  [SettingsTabs.UserGroups]: dynamic(() => import('../user-groups'), {
+    loading: loading('Settings > UserGroups'),
+  }),
+
   [SettingsTabs.Plans]: dynamic(() => import('@/business/client/BusinessSettingPages/Plans'), {
     loading: loading('Settings > Plans'),
   }),

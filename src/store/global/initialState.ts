@@ -59,6 +59,7 @@ export enum SettingsTabs {
   Profile = 'profile',
   Provider = 'provider',
   Proxy = 'proxy',
+  RBAC = 'rbac',
   Referral = 'referral',
   Security = 'security',
   ServiceModel = 'service-model',
@@ -70,6 +71,7 @@ export enum SettingsTabs {
   /** @deprecated Use ServiceModel instead */
   TTS = 'tts',
   Usage = 'usage',
+  UserGroups = 'user-groups',
 }
 
 /**

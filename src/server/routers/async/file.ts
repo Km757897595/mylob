@@ -91,6 +91,10 @@ export const fileRouter = router({
             await pMap(
               requestArray,
               async (chunks) => {
+                // Filter out chunks with empty text
+                const validChunks = chunks.filter((c) => c.text && c.text.trim().length > 0);
+                if (validChunks.length === 0) return;
+
                 // Read user's provider config from database
                 const modelRuntime = await initModelRuntimeFromDB(
                   ctx.serverDB,
@@ -101,7 +105,7 @@ export const fileRouter = router({
                 const embeddings = await modelRuntime.embeddings(
                   {
                     dimensions: 1024,
-                    input: chunks.map((c) => c.text),
+                    input: validChunks.map((c) => c.text),
                     model,
                   },
                   { metadata: { trigger: RequestTrigger.FileEmbedding } },
@@ -109,17 +113,23 @@ export const fileRouter = router({
 
                 const items: NewEmbeddingsItem[] =
                   embeddings?.map((e, idx) => ({
-                    chunkId: chunks[idx].id,
+                    chunkId: validChunks[idx].id,
                     embeddings: e,
                     fileId: input.fileId,
                     model,
                   })) || [];
 
-                await ctx.embeddingModel.bulkCreate(items);
+                if (items.length > 0) {
+                  await ctx.embeddingModel.bulkCreate(items);
+                }
               },
               { concurrency: CONCURRENCY },
             );
           } catch (e: any) {
+            console.error(
+              '[DEBUG embedding inner error]',
+              JSON.stringify(e, Object.getOwnPropertyNames(e), 2),
+            );
             throw {
               message: e.errorType ?? e.message ?? JSON.stringify(e),
               name: AsyncTaskErrorType.EmbeddingError,
@@ -139,7 +149,7 @@ export const fileRouter = router({
         // Race between the chunking process and the timeout
         return await Promise.race([embeddingPromise(), timeoutPromise]);
       } catch (e) {
-        console.error('embeddingChunks error', e);
+        console.error('embeddingChunks error', JSON.stringify(e, null, 2));
 
         await ctx.asyncTaskModel.update(input.taskId, {
           error: new AsyncTaskError((e as Error).name, (e as Error).message),

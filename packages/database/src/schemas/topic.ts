@@ -19,6 +19,7 @@ import { chatGroups } from './chatGroup';
 import { documents } from './file';
 import { sessions } from './session';
 import { users } from './user';
+import { userGroups } from './userGroup';
 
 export const topics = pgTable(
   'topics',
@@ -37,6 +38,7 @@ export const topics = pgTable(
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     clientId: text('client_id'),
+    userGroupId: text('user_group_id').references(() => userGroups.id, { onDelete: 'set null' }),
     description: text('description'),
     historySummary: text('history_summary'),
     metadata: jsonb('metadata').$type<ChatTopicMetadata | undefined>(),
@@ -51,6 +53,7 @@ export const topics = pgTable(
     index('topics_session_id_idx').on(t.sessionId),
     index('topics_group_id_idx').on(t.groupId),
     index('topics_agent_id_idx').on(t.agentId),
+    index('topics_user_group_id_idx').on(t.userGroupId),
     index('topics_trigger_idx').on(t.trigger),
     index('topics_extract_status_gin_idx').using(
       'gin',

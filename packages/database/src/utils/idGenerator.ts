@@ -28,8 +28,11 @@ const prefixes = {
   sessionGroups: 'sg',
   sessions: 'ssn',
   threads: 'thd',
+  topicLocks: 'tl',
   topics: 'tpc',
   user: 'user',
+  userGroupMembers: 'ugm',
+  userGroups: 'ug',
 } as const;
 
 export const idGenerator = (namespace: keyof typeof prefixes, size = 12) => {
