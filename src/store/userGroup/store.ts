@@ -18,6 +18,7 @@ export interface GroupTopicItem {
 export interface MyGroupItem {
   group: {
     accessedAt: Date;
+    agentId: string | null;
     createdAt: Date;
     createdBy: string | null;
     description: string | null;
@@ -27,12 +28,15 @@ export interface MyGroupItem {
     sort: number | null;
     updatedAt: Date;
   };
+  memberCount: number;
   role: string;
 }
 
 export interface UserGroupStore extends UserGroupState, UserGroupAction {}
 
 interface UserGroupState {
+  /** 当前激活的组 ID（侧边栏路由用） */
+  activeGroupId: string | null;
   /** 当前激活的话题锁定续期定时器 */
   activeLockedTopicId: string | null;
   /** 管理页面用的组列表 */
@@ -59,17 +63,19 @@ interface UserGroupAction {
   deleteGroup: (id: string) => Promise<void>;
   enterTopic: (topicId: string) => Promise<{ lockedBy?: string; success: boolean }>;
   fetchGroups: () => Promise<void>;
-
   fetchGroupTopics: (groupId: string) => Promise<void>;
+
   fetchMembers: (groupId: string) => Promise<void>;
   fetchMyGroups: () => Promise<void>;
   leaveTopic: (topicId: string) => void;
   removeMember: (groupId: string, userId: string) => Promise<void>;
+  setActiveGroupId: (id: string | null) => void;
 }
 
 const LOCK_RENEW_INTERVAL = 2 * 60 * 1000; // 2 分钟续期
 
 const initialState: UserGroupState = {
+  activeGroupId: null,
   activeLockedTopicId: null,
   groups: [],
   groupTopics: {},
@@ -83,6 +89,10 @@ let lockRenewTimer: ReturnType<typeof setInterval> | null = null;
 
 const createStore: StateCreator<UserGroupStore, [['zustand/devtools', never]]> = (set, get) => ({
   ...initialState,
+
+  setActiveGroupId: (id) => {
+    set({ activeGroupId: id }, false, 'setActiveGroupId');
+  },
 
   // ============ 管理类 ============
 
@@ -194,3 +204,6 @@ export const useUserGroupStore = createWithEqualityFn<UserGroupStore>()(
   devtools(createStore),
   shallow,
 );
+
+export const selectActiveGroupDetail = (state: UserGroupStore): MyGroupItem | undefined =>
+  state.myGroups.find((g) => g.group.id === state.activeGroupId);
