@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 
 import { users } from '../schemas/user';
 import {
@@ -112,13 +112,25 @@ export class UserGroupModel {
    */
   getUserGroupsWithDetails = async (userId?: string) => {
     const targetUserId = userId || this.userId;
+
+    const memberCountSq = this.db
+      .select({
+        groupId: userGroupMembers.groupId,
+        count: sql<number>`count(*)::int`.as('count'),
+      })
+      .from(userGroupMembers)
+      .groupBy(userGroupMembers.groupId)
+      .as('member_count');
+
     return this.db
       .select({
         group: userGroups,
+        memberCount: sql<number>`coalesce(${memberCountSq.count}, 0)`.as('memberCount'),
         role: userGroupMembers.role,
       })
       .from(userGroupMembers)
       .innerJoin(userGroups, eq(userGroups.id, userGroupMembers.groupId))
+      .leftJoin(memberCountSq, eq(memberCountSq.groupId, userGroupMembers.groupId))
       .where(eq(userGroupMembers.userId, targetUserId))
       .orderBy(asc(userGroups.sort), desc(userGroups.createdAt));
   };
