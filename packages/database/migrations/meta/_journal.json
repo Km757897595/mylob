@@ -665,6 +665,20 @@
       "when": 1774416513892,
       "tag": "0094_amused_blob",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1774500000000,
+      "tag": "0095_refactor_user_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1774742400000,
+      "tag": "0096_user_group_agent_binding",
+      "breakpoints": true
     }
   ],
   "version": "6"

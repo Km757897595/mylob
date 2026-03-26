@@ -2,6 +2,7 @@ import { index, integer, pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
 
 import { idGenerator } from '../utils/idGenerator';
 import { createdAt, timestamps } from './_helpers';
+import { agents } from './agent';
 import { users } from './user';
 
 // ============ 用户组表 ============
@@ -16,6 +17,7 @@ export const userGroups = pgTable(
     parentId: text('parent_id'), // 支持层级结构（自引用）
     createdBy: text('created_by').references(() => users.id, { onDelete: 'set null' }),
     sort: integer('sort'),
+    agentId: text('agent_id').references(() => agents.id, { onDelete: 'set null' }),
     ...timestamps,
   },
   (t) => [
