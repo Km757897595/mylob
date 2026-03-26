@@ -294,6 +294,7 @@ export const agentRouter = router({
     .input(
       z
         .object({
+          includeVirtual: z.boolean().optional(),
           keyword: z.string().optional(),
           limit: z.number().optional(),
           offset: z.number().optional(),

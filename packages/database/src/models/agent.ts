@@ -42,13 +42,18 @@ export class AgentModel {
    * Returns minimal agent info (id, title, description, avatar, backgroundColor).
    * Excludes virtual agents (like inbox, supervisors, etc).
    */
-  queryAgents = async (params?: { keyword?: string; limit?: number; offset?: number }) => {
-    const { keyword, limit = 9999, offset = 0 } = params ?? {};
+  queryAgents = async (params?: {
+    includeVirtual?: boolean;
+    keyword?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const { keyword, limit = 9999, offset = 0, includeVirtual = false } = params ?? {};
     // Include agents where virtual is false OR null (legacy data without virtual field)
-    const baseConditions = and(
-      eq(agents.userId, this.userId),
-      or(eq(agents.virtual, false), isNull(agents.virtual)),
-    );
+    // When includeVirtual is true, also include virtual agents (built-in agents)
+    const baseConditions = includeVirtual
+      ? eq(agents.userId, this.userId)
+      : and(eq(agents.userId, this.userId), or(eq(agents.virtual, false), isNull(agents.virtual)));
 
     // Add keyword search condition if provided
     const searchCondition = keyword

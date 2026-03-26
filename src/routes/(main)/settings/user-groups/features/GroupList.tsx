@@ -83,7 +83,11 @@ const GroupList = memo(() => {
   const fetchAgents = useCallback(async (keyword?: string) => {
     setAgentLoading(true);
     try {
-      const data = await lambdaClient.agent.queryAgents.query({ keyword, limit: 50 });
+      const data = await lambdaClient.agent.queryAgents.query({
+        includeVirtual: true,
+        keyword,
+        limit: 50,
+      });
       setAgentOptions(
         data.map((a: any) => ({
           label: a.title || a.id,
