@@ -85,6 +85,7 @@ export const userGroupRouter = router({
   updateGroup: groupManageProcedure
     .input(
       z.object({
+        agentId: z.string().nullable().optional(),
         description: z.string().optional(),
         id: z.string(),
         name: z.string().optional(),

@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { lambdaClient } from '@/libs/trpc/client';
 
 interface GroupItem {
+  agentId: string | null;
   createdBy: string | null;
   description: string | null;
   id: string;
@@ -33,6 +34,11 @@ interface UserOption {
   value: string;
 }
 
+interface AgentOption {
+  label: string;
+  value: string;
+}
+
 const GroupList = memo(() => {
   const { t } = useTranslation('setting');
   const [groups, setGroups] = useState<GroupItem[]>([]);
@@ -52,6 +58,10 @@ const GroupList = memo(() => {
   const [addUserSearchLoading, setAddUserSearchLoading] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Agent binding state
+  const [agentOptions, setAgentOptions] = useState<AgentOption[]>([]);
+  const [agentLoading, setAgentLoading] = useState(false);
+
   const fetchGroups = useCallback(async () => {
     setLoading(true);
     try {
@@ -68,6 +78,37 @@ const GroupList = memo(() => {
     fetchGroups();
     return () => clearTimeout(searchTimerRef.current);
   }, [fetchGroups]);
+
+  // Fetch available agents for binding
+  const fetchAgents = useCallback(async (keyword?: string) => {
+    setAgentLoading(true);
+    try {
+      const data = await lambdaClient.agent.queryAgents.query({ keyword, limit: 50 });
+      setAgentOptions(
+        data.map((a: any) => ({
+          label: a.title || a.id,
+          value: a.id,
+        })),
+      );
+    } catch {
+      setAgentOptions([]);
+    } finally {
+      setAgentLoading(false);
+    }
+  }, []);
+
+  const handleBindAgent = useCallback(
+    async (groupId: string, agentId: string | null) => {
+      try {
+        await lambdaClient.userGroup.updateGroup.mutate({ agentId, id: groupId });
+        message.success(t('userGroups.bindAgentSuccess'));
+        fetchGroups();
+      } catch {
+        message.error(t('userGroups.bindAgentFailed'));
+      }
+    },
+    [fetchGroups, t],
+  );
 
   const fetchMembers = useCallback(async (groupId: string) => {
     setMemberLoading(true);
@@ -220,6 +261,31 @@ const GroupList = memo(() => {
   const columns: ColumnsType<GroupItem> = [
     { dataIndex: 'name', key: 'name', title: t('userGroups.groupName') },
     { dataIndex: 'description', key: 'description', title: t('userGroups.description') },
+    {
+      key: 'agent',
+      render: (_, record) => (
+        <Flexbox horizontal align="center" gap={4}>
+          <Select
+            allowClear
+            showSearch
+            filterOption={false}
+            loading={agentLoading}
+            options={agentOptions}
+            placeholder={t('userGroups.bindAgentPlaceholder')}
+            size="small"
+            style={{ width: 180 }}
+            value={record.agentId || undefined}
+            onChange={(val) => handleBindAgent(record.id, val ?? null)}
+            onSearch={(keyword) => fetchAgents(keyword)}
+            onDropdownVisibleChange={(open) => {
+              if (open) fetchAgents();
+            }}
+          />
+        </Flexbox>
+      ),
+      title: t('userGroups.boundAgent'),
+      width: 220,
+    },
     {
       key: 'actions',
       render: (_, record) => (
