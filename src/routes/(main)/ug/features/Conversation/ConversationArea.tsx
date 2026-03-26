@@ -3,11 +3,14 @@
 import { Flexbox, Text } from '@lobehub/ui';
 import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router-dom';
 
 import { ChatList, ConversationProvider } from '@/features/Conversation';
 import { useOperationState } from '@/hooks/useOperationState';
 import { useChatStore } from '@/store/chat';
 import { messageMapKey } from '@/store/chat/utils/messageMapKey';
+import { useUserStore } from '@/store/user';
+import { authSelectors } from '@/store/user/selectors';
 import { selectActiveGroupDetail, useUserGroupStore } from '@/store/userGroup/store';
 
 import ChatHydration from './ChatHydration';
@@ -16,9 +19,15 @@ import { useUserGroupChatContext } from './useUserGroupChatContext';
 
 const ConversationArea = memo(() => {
   const { t } = useTranslation('userGroup');
+  const params = useParams<{ ugid: string }>();
   const context = useUserGroupChatContext();
   const hasAgent = useUserGroupStore((s) => !!selectActiveGroupDetail(s)?.group.agentId);
   const hasActiveTopic = useChatStore((s) => !!s.activeTopicId);
+
+  // Populate chatStore.topicDataMap so summaryTopicTitle works after first chat
+  const isLogin = useUserStore(authSelectors.isLogin);
+  const useFetchTopics = useChatStore((s) => s.useFetchTopics);
+  useFetchTopics(isLogin && !!params.ugid, { groupId: params.ugid });
 
   const chatKey = useMemo(() => messageMapKey(context), [context.agentId, context.topicId]);
   const replaceMessages = useChatStore((s) => s.replaceMessages);

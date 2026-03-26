@@ -10,9 +10,10 @@ const UgIdSync = () => {
   const params = useParams<{ ugid?: string }>();
   const prevUgId = usePrevious(params.ugid);
 
-  // Sync ugid to userGroupStore
+  // Sync ugid to userGroupStore and chatStore
   useEffect(() => {
     useUserGroupStore.getState().setActiveGroupId(params.ugid ?? null);
+    useChatStore.setState({ activeGroupId: params.ugid }, false, 'UgIdSync/groupId');
   }, [params.ugid]);
 
   // Sync the group's bound agentId to chatStore so ConversationProvider works
@@ -37,7 +38,7 @@ const UgIdSync = () => {
     useUserGroupStore.getState().setActiveGroupId(null);
     useAgentStore.setState({ activeAgentId: undefined }, false, 'UgIdSync/unmount');
     useChatStore.setState(
-      { activeAgentId: undefined, activeTopicId: undefined },
+      { activeAgentId: undefined, activeGroupId: undefined, activeTopicId: undefined },
       false,
       'UgIdSync/unmount',
     );

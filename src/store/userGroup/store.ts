@@ -59,7 +59,7 @@ interface UserGroupAction {
     agentId?: string;
     title: string;
     userGroupId: string;
-  }) => Promise<void>;
+  }) => Promise<string | undefined>;
   deleteGroup: (id: string) => Promise<void>;
   enterTopic: (topicId: string) => Promise<{ lockedBy?: string; success: boolean }>;
   fetchGroups: () => Promise<void>;
@@ -144,8 +144,9 @@ const createStore: StateCreator<UserGroupStore, [['zustand/devtools', never]]> =
   },
 
   createGroupTopic: async (params) => {
-    await userGroupService.createGroupTopic(params);
+    const topic = await userGroupService.createGroupTopic(params);
     await get().fetchGroupTopics(params.userGroupId);
+    return topic?.id;
   },
 
   /**

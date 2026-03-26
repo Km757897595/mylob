@@ -5,8 +5,9 @@ import { Button } from 'antd';
 import { MessageSquarePlus } from 'lucide-react';
 import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
+import { useChatStore } from '@/store/chat';
 import { type GroupTopicItem, useUserGroupStore } from '@/store/userGroup/store';
 
 import Item from './List/Item';
@@ -15,15 +16,17 @@ const POLL_INTERVAL = 10_000; // 10 seconds
 
 const Topic = memo(() => {
   const { t } = useTranslation('userGroup');
+  const navigate = useNavigate();
   const params = useParams<{ ugid: string }>();
   const [searchParams] = useSearchParams();
   const activeTopicId = searchParams.get('topic');
   const [creating, setCreating] = useState(false);
 
-  const [groupTopics, fetchGroupTopics, createGroupTopic] = useUserGroupStore((s) => [
+  const [groupTopics, fetchGroupTopics, createGroupTopic, enterTopic] = useUserGroupStore((s) => [
     s.groupTopics[params.ugid || ''] || [],
     s.fetchGroupTopics,
     s.createGroupTopic,
+    s.enterTopic,
   ]);
 
   // Fetch topics on mount and poll every 10s for lock status
@@ -38,11 +41,17 @@ const Topic = memo(() => {
     if (!params.ugid) return;
     setCreating(true);
     try {
-      await createGroupTopic({ title: t('newTopic'), userGroupId: params.ugid });
+      const topicId = await createGroupTopic({ title: t('newTopic'), userGroupId: params.ugid });
+      if (topicId) {
+        // Auto-select the new topic: optimistic UI + lock in background
+        useChatStore.setState({ activeTopicId: topicId }, false, 'UgTopic/create');
+        navigate(`/ug/${params.ugid}?topic=${topicId}`, { replace: true });
+        enterTopic(topicId);
+      }
     } finally {
       setCreating(false);
     }
-  }, [createGroupTopic, params.ugid, t]);
+  }, [createGroupTopic, enterTopic, navigate, params.ugid, t]);
 
   return (
     <Flexbox gap={4} padding={'8px 4px'}>
