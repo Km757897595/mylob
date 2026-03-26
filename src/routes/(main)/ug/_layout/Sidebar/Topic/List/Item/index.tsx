@@ -21,9 +21,7 @@ const TopicItem = memo<TopicItemProps>(({ topic, active }) => {
   const enterTopic = useUserGroupStore((s) => s.enterTopic);
 
   const isLockedByOther = !!topic.lock?.lockedBy;
-  const lockerName = topic.lock?.lockedBy
-    ? topic.creator?.fullName || topic.lock.lockedBy.slice(0, 6)
-    : null;
+  const lockerName = topic.lock?.lockedBy ? topic.lock.lockedBy.slice(0, 6) : null;
 
   const handleClick = useCallback(async () => {
     if (active) return; // Already viewing this topic

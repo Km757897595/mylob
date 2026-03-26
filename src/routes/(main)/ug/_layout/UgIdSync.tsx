@@ -2,6 +2,7 @@ import { usePrevious, useUnmount } from 'ahooks';
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { useAgentStore } from '@/store/agent';
 import { useChatStore } from '@/store/chat';
 import { selectActiveGroupDetail, useUserGroupStore } from '@/store/userGroup/store';
 
@@ -19,6 +20,7 @@ const UgIdSync = () => {
 
   useEffect(() => {
     if (agentId) {
+      useAgentStore.setState({ activeAgentId: agentId }, false, 'UgIdSync/agentId');
       useChatStore.setState({ activeAgentId: agentId }, false, 'UgIdSync/agentId');
     }
   }, [agentId]);
@@ -33,6 +35,7 @@ const UgIdSync = () => {
   // Cleanup on unmount
   useUnmount(() => {
     useUserGroupStore.getState().setActiveGroupId(null);
+    useAgentStore.setState({ activeAgentId: undefined }, false, 'UgIdSync/unmount');
     useChatStore.setState(
       { activeAgentId: undefined, activeTopicId: undefined },
       false,
