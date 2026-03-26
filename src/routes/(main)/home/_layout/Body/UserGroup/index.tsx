@@ -8,7 +8,6 @@ import SkeletonList from '@/features/NavPanel/components/SkeletonList';
 import { useUserGroupStore } from '@/store/userGroup/store';
 
 import List from './List';
-import { useGroupTopicLockCleanup } from './useGroupTopicLockCleanup';
 
 interface UserGroupProps {
   itemKey: string;
@@ -17,8 +16,6 @@ interface UserGroupProps {
 const UserGroup = memo<UserGroupProps>(({ itemKey }) => {
   const { t } = useTranslation('common');
   const fetchMyGroups = useUserGroupStore((s) => s.fetchMyGroups);
-
-  useGroupTopicLockCleanup();
 
   useEffect(() => {
     fetchMyGroups();
