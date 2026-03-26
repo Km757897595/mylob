@@ -1,6 +1,7 @@
 import isEqual from 'fast-deep-equal';
 import {
   type AiModelSortMap,
+  AiModelTypeSchema,
   type AiProviderModelListItem,
   type CreateAiModelParams,
   type ToggleAiModelEnableParams,
@@ -78,7 +79,7 @@ export class AiModelActionImpl {
           },
           enabled: model.enabled || false,
           source: 'remote',
-          type: model.type || 'chat',
+          type: AiModelTypeSchema.catch('chat').parse(model.type || 'chat'),
         })),
       );
 

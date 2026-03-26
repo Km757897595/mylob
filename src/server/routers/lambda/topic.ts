@@ -244,8 +244,18 @@ export const topicRouter = router({
     .query(async ({ input, ctx }) => {
       const { sessionId, isInbox, groupId, excludeTriggers, ...rest } = input;
 
-      // If groupId is provided, query by groupId directly
+      // If groupId is provided, determine whether it's a user group or chat group
       if (groupId) {
+        // User group IDs have 'ug_' prefix — query by userGroupId column
+        if (groupId.startsWith('ug_')) {
+          const result = await ctx.topicModel.query({
+            excludeTriggers,
+            userGroupId: groupId,
+            ...rest,
+          });
+          return { items: result.items, total: result.total };
+        }
+        // Otherwise it's a chat group — query by groupId column
         const result = await ctx.topicModel.query({ excludeTriggers, groupId, ...rest });
         return { items: result.items, total: result.total };
       }

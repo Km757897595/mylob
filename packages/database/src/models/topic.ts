@@ -35,7 +35,7 @@ interface QueryTopicParams {
    */
   excludeTriggers?: string[];
   /**
-   * Group ID to filter topics by
+   * Group ID (chatGroups) to filter topics by
    */
   groupId?: string | null;
   /**
@@ -44,6 +44,10 @@ interface QueryTopicParams {
    */
   isInbox?: boolean;
   pageSize?: number;
+  /**
+   * User Group ID (userGroups) to filter topics by
+   */
+  userGroupId?: string | null;
 }
 
 export interface ListTopicsForMemoryExtractorCursor {
@@ -69,12 +73,46 @@ export class TopicModel {
     pageSize = 9999,
     groupId,
     isInbox,
+    userGroupId,
   }: QueryTopicParams = {}) => {
     const offset = current * pageSize;
     const excludeTriggerCondition =
       excludeTriggers && excludeTriggers.length > 0
         ? or(isNull(topics.trigger), not(inArray(topics.trigger, excludeTriggers)))
         : undefined;
+
+    // If userGroupId is provided, query topics by userGroupId
+    if (userGroupId) {
+      const whereCondition = and(
+        eq(topics.userId, this.userId),
+        eq(topics.userGroupId, userGroupId),
+        excludeTriggerCondition,
+      );
+
+      const [items, totalResult] = await Promise.all([
+        this.db
+          .select({
+            createdAt: topics.createdAt,
+            favorite: topics.favorite,
+            historySummary: topics.historySummary,
+            id: topics.id,
+            metadata: topics.metadata,
+            title: topics.title,
+            updatedAt: topics.updatedAt,
+          })
+          .from(topics)
+          .where(whereCondition)
+          .orderBy(desc(topics.favorite), desc(topics.updatedAt))
+          .limit(pageSize)
+          .offset(offset),
+        this.db
+          .select({ count: count(topics.id) })
+          .from(topics)
+          .where(whereCondition),
+      ]);
+
+      return { items, total: totalResult[0].count };
+    }
 
     // If groupId is provided, query topics by groupId directly
     if (groupId) {

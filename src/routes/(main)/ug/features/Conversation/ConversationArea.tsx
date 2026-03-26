@@ -25,9 +25,11 @@ const ConversationArea = memo(() => {
   const hasActiveTopic = useChatStore((s) => !!s.activeTopicId);
 
   // Populate chatStore.topicDataMap so summaryTopicTitle works after first chat
+  // Must pass both agentId and groupId so topicMapKey matches currentTopicData selector
   const isLogin = useUserStore(authSelectors.isLogin);
+  const agentId = useUserGroupStore((s) => selectActiveGroupDetail(s)?.group.agentId);
   const useFetchTopics = useChatStore((s) => s.useFetchTopics);
-  useFetchTopics(isLogin && !!params.ugid, { groupId: params.ugid });
+  useFetchTopics(isLogin && !!params.ugid, { agentId: agentId ?? undefined, groupId: params.ugid });
 
   const chatKey = useMemo(() => messageMapKey(context), [context.agentId, context.topicId]);
   const replaceMessages = useChatStore((s) => s.replaceMessages);

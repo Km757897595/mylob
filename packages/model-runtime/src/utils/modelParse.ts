@@ -1,5 +1,10 @@
 import { type ChatModelCard } from '@lobechat/types';
-import { type AIBaseModelCard, type AiModelSettings, type ExtendParamsType } from 'model-bank';
+import {
+  type AIBaseModelCard,
+  type AiModelSettings,
+  AiModelTypeSchema,
+  type ExtendParamsType,
+} from 'model-bank';
 
 import { type ModelProviderKey } from '../types';
 
@@ -475,8 +480,9 @@ const processModelCard = (
   } = config;
 
   const isExcludedModel = isKeywordListMatch(model.id.toLowerCase(), excludeKeywords);
+  const validatedType = AiModelTypeSchema.safeParse(model.type).success ? model.type : undefined;
   const modelType =
-    model.type ||
+    validatedType ||
     knownModel?.type ||
     (isKeywordListMatch(
       model.id.toLowerCase(),

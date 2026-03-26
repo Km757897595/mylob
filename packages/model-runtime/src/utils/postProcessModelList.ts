@@ -1,6 +1,6 @@
 import type { ChatModelCard } from '@lobechat/types';
 import { omit } from 'es-toolkit/compat';
-import type { AiModelType } from 'model-bank';
+import { type AiModelType, AiModelTypeSchema } from 'model-bank';
 import { CHAT_MODEL_IMAGE_GENERATION_PARAMS } from 'model-bank';
 
 // Whitelist for automatic image model generation
@@ -27,7 +27,9 @@ export async function postProcessModelList(
   // 1. Ensure all models have type field
   const finalModels = await Promise.all(
     models.map(async (model) => {
-      let modelType: AiModelType | undefined = model.type;
+      let modelType: AiModelType | undefined = AiModelTypeSchema.safeParse(model.type).success
+        ? model.type
+        : undefined;
 
       if (!modelType && getModelTypeProperty) {
         modelType = await getModelTypeProperty(model.id);

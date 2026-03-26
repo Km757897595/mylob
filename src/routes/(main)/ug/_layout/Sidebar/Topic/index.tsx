@@ -41,17 +41,20 @@ const Topic = memo(() => {
     if (!params.ugid) return;
     setCreating(true);
     try {
-      const topicId = await createGroupTopic({ title: t('newTopic'), userGroupId: params.ugid });
+      const topicId = await createGroupTopic({ title: '', userGroupId: params.ugid });
       if (topicId) {
         // Auto-select the new topic: optimistic UI + lock in background
         useChatStore.setState({ activeTopicId: topicId }, false, 'UgTopic/create');
         navigate(`/ug/${params.ugid}?topic=${topicId}`, { replace: true });
         enterTopic(topicId);
+        // Refresh chatStore.topicDataMap so getTopicById can find the new topic
+        // This is required for title summarization after first message
+        await useChatStore.getState().refreshTopic();
       }
     } finally {
       setCreating(false);
     }
-  }, [createGroupTopic, enterTopic, navigate, params.ugid, t]);
+  }, [createGroupTopic, enterTopic, navigate, params.ugid]);
 
   return (
     <Flexbox gap={4} padding={'8px 4px'}>
