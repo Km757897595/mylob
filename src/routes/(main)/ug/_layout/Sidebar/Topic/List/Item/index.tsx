@@ -7,6 +7,7 @@ import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useChatStore } from '@/store/chat';
 import { type GroupTopicItem, useUserGroupStore } from '@/store/userGroup/store';
 
 interface TopicItemProps {
@@ -24,12 +25,17 @@ const TopicItem = memo<TopicItemProps>(({ topic, active }) => {
   const lockerName = topic.lock?.lockedBy ? topic.lock.lockedBy.slice(0, 6) : null;
 
   const handleClick = useCallback(async () => {
-    if (active) return; // Already viewing this topic
+    if (active) return;
 
+    // Optimistically switch topic for instant UI feedback
+    useChatStore.setState({ activeTopicId: topic.id }, false, 'UgTopicItem/optimistic');
+    navigate(`/ug/${params.ugid}?topic=${topic.id}`, { replace: true });
+
+    // Then lock in background — revert if fails
     const result = await enterTopic(topic.id);
-    if (result.success) {
-      navigate(`/ug/${params.ugid}?topic=${topic.id}`, { replace: true });
-    } else {
+    if (!result.success) {
+      useChatStore.setState({ activeTopicId: undefined }, false, 'UgTopicItem/revert');
+      navigate(`/ug/${params.ugid}`, { replace: true });
       const name = result.lockedBy || '';
       message.warning(t('topicLockedBy', { name }));
     }
