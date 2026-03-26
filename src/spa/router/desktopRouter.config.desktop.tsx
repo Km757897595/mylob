@@ -64,6 +64,8 @@ import ResourceLibrarySlugPage from '@/routes/(main)/resource/library/[slug]';
 import SettingsTabPage from '@/routes/(main)/settings';
 import SettingsLayout from '@/routes/(main)/settings/_layout';
 import { ProviderDetailPage, ProviderLayout } from '@/routes/(main)/settings/provider';
+import UserGroupPage from '@/routes/(main)/ug';
+import DesktopUserGroupLayout from '@/routes/(main)/ug/_layout';
 import VideoPage from '@/routes/(main)/video';
 import DesktopVideoLayout from '@/routes/(main)/video/_layout';
 import ShareTopicPage from '@/routes/share/t/[id]';
@@ -132,6 +134,28 @@ export const desktopRoutes: RouteObject[] = [
           },
         ],
         path: 'group',
+      },
+
+      // User group chat routes
+      {
+        children: [
+          {
+            element: redirectElement('/'),
+            index: true,
+          },
+          {
+            children: [
+              {
+                element: <UserGroupPage />,
+                index: true,
+              },
+            ],
+            element: <DesktopUserGroupLayout />,
+            errorElement: <ErrorBoundary resetPath="/ug" />,
+            path: ':ugid',
+          },
+        ],
+        path: 'ug',
       },
 
       // Discover routes with nested structure

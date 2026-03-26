@@ -93,6 +93,31 @@ export const desktopRoutes: RouteObject[] = [
         path: 'group',
       },
 
+      // User group chat routes
+      {
+        children: [
+          {
+            element: redirectElement('/'),
+            index: true,
+          },
+          {
+            children: [
+              {
+                element: dynamicElement(() => import('@/routes/(main)/ug'), 'Desktop > User Group'),
+                index: true,
+              },
+            ],
+            element: dynamicLayout(
+              () => import('@/routes/(main)/ug/_layout'),
+              'Desktop > User Group > Layout',
+            ),
+            errorElement: <ErrorBoundary resetPath="/ug" />,
+            path: ':ugid',
+          },
+        ],
+        path: 'ug',
+      },
+
       // Discover routes with nested structure
       {
         children: [
