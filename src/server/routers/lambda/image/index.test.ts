@@ -9,6 +9,7 @@ const {
   mockServerDB,
   mockGetKeyFromFullUrl,
   mockGetFullFileUrl,
+  mockGetFileByteArray,
   mockAsyncTaskModelUpdate,
   mockChargeBeforeGenerate,
   mockCreateAsyncCaller,
@@ -18,6 +19,7 @@ const {
   },
   mockGetKeyFromFullUrl: vi.fn(),
   mockGetFullFileUrl: vi.fn(),
+  mockGetFileByteArray: vi.fn(),
   mockAsyncTaskModelUpdate: vi.fn(),
   mockChargeBeforeGenerate: vi.fn(),
   mockCreateAsyncCaller: vi.fn(),
@@ -36,6 +38,7 @@ vi.mock('@/database/core/db-adaptor', () => ({
 // Mock FileService
 vi.mock('@/server/services/file', () => ({
   FileService: vi.fn(() => ({
+    getFileByteArray: mockGetFileByteArray,
     getKeyFromFullUrl: mockGetKeyFromFullUrl,
     getFullFileUrl: mockGetFullFileUrl,
   })),
@@ -105,6 +108,7 @@ describe('imageRouter', () => {
     mockChargeBeforeGenerate.mockResolvedValue(undefined);
     mockGetKeyFromFullUrl.mockResolvedValue(null);
     mockGetFullFileUrl.mockResolvedValue(null);
+    mockGetFileByteArray.mockResolvedValue(new Uint8Array([1, 2, 3]));
 
     // Setup default transaction mock
     const mockBatch = {
@@ -480,6 +484,35 @@ describe('imageRouter', () => {
         expect(result.success).toBe(true);
         expect(mockGetFullFileUrl).toHaveBeenCalled();
       });
+    });
+
+    it('should inline storage-backed imageUrl when preview URL resolves to localhost', async () => {
+      mockGetKeyFromFullUrl.mockResolvedValue('files/image-key.jpg');
+      mockGetFullFileUrl.mockResolvedValue(
+        'http://localhost:9000/lobe/files/image-key.jpg?X-Amz-Signature=test',
+      );
+      mockGetFileByteArray.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+      const ctx = createMockCtx();
+      const input = createDefaultInput({
+        params: {
+          imageUrl: 'http://localhost:3210/f/file-id',
+          prompt: 'test prompt',
+        },
+      });
+
+      const caller = imageRouter.createCaller(ctx);
+      const result = await caller.createImage(input);
+
+      expect(result.success).toBe(true);
+      expect(mockGetFileByteArray).toHaveBeenCalledWith('files/image-key.jpg');
+      expect(mockAsyncCallerCreateImage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: expect.objectContaining({
+            imageUrl: 'data:image/jpeg;base64,AQID',
+          }),
+        }),
+      );
     });
   });
 });

@@ -1,5 +1,6 @@
 import debug from 'debug';
 import { and, eq } from 'drizzle-orm';
+import mime from 'mime';
 import { z } from 'zod';
 
 import { chargeBeforeGenerate } from '@/business/server/image-generation/chargeBeforeGenerate';
@@ -18,9 +19,22 @@ import {
 } from '@/types/asyncTask';
 import { generateUniqueSeeds } from '@/utils/number';
 
-import { validateNoUrlsInConfig } from './utils';
+import { buildDataUri, isPrivateNetworkUrl, validateNoUrlsInConfig } from './utils';
 
 const log = debug('lobe-image:lambda');
+
+const resolveGenerationInputImage = async (key: string, fileService: FileService) => {
+  const fullFileUrl = await fileService.getFullFileUrl(key);
+
+  if (fullFileUrl && !isPrivateNetworkUrl(fullFileUrl)) {
+    return fullFileUrl;
+  }
+
+  const bytes = await fileService.getFileByteArray(key);
+  const mimeType = mime.getType(key) || 'image/png';
+
+  return buildDataUri(mimeType, bytes);
+};
 
 const imageProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   const { ctx } = opts;
@@ -104,32 +118,28 @@ export const imageRouter = router({
       }
     }
 
-    // In development, convert localhost proxy URLs to S3 URLs for async task access
     let generationParams = params;
-    if (process.env.NODE_ENV === 'development') {
-      const updates: Record<string, unknown> = {};
+    const updates: Record<string, unknown> = {};
 
-      // Handle single imageUrl: localhost/f/{id} -> S3 URL
-      if (typeof params.imageUrl === 'string' && params.imageUrl) {
-        const s3Url = await fileService.getFullFileUrl(configForDatabase.imageUrl as string);
-        if (s3Url) {
-          log('Dev: converted proxy URL to S3 URL: %s -> %s', params.imageUrl, s3Url);
-          updates.imageUrl = s3Url;
-        }
-      }
+    if (typeof configForDatabase.imageUrl === 'string' && configForDatabase.imageUrl) {
+      const resolvedImageUrl = await resolveGenerationInputImage(
+        configForDatabase.imageUrl,
+        fileService,
+      );
+      log('Resolved model input imageUrl: %s -> %s', params.imageUrl, resolvedImageUrl);
+      updates.imageUrl = resolvedImageUrl;
+    }
 
-      // Handle multiple imageUrls
-      if (Array.isArray(params.imageUrls) && params.imageUrls.length > 0) {
-        const s3Urls = await Promise.all(
-          (configForDatabase.imageUrls as string[]).map((key) => fileService.getFullFileUrl(key)),
-        );
-        log('Dev: converted proxy URLs to S3 URLs: %O', s3Urls);
-        updates.imageUrls = s3Urls;
-      }
+    if (Array.isArray(configForDatabase.imageUrls) && configForDatabase.imageUrls.length > 0) {
+      const resolvedImageUrls = await Promise.all(
+        configForDatabase.imageUrls.map((key) => resolveGenerationInputImage(key, fileService)),
+      );
+      log('Resolved model input imageUrls: %O', resolvedImageUrls);
+      updates.imageUrls = resolvedImageUrls;
+    }
 
-      if (Object.keys(updates).length > 0) {
-        generationParams = { ...params, ...updates };
-      }
+    if (Object.keys(updates).length > 0) {
+      generationParams = { ...params, ...updates };
     }
 
     // Defensive check: ensure no full URLs enter the database
