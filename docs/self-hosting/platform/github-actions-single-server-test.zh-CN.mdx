@@ -75,6 +75,7 @@ docker compose version
 
 在仓库的 GitHub Actions Secrets 中添加以下字段：
 
+- `DOCKER_REGISTRY_IMAGE`
 - `DOCKER_REGISTRY_USER`
 - `DOCKER_REGISTRY_PASSWORD`
 - `TEST_SERVER_HOST`
@@ -87,6 +88,7 @@ docker compose version
 
 其中：
 
+- `DOCKER_REGISTRY_IMAGE` 填你自己可写入的 Docker Hub 仓库，例如 `your-dockerhub-name/mylob`
 - `TEST_SERVER_DEPLOY_PATH` 推荐设置为 `/opt/lobehub-test`
 - `TEST_ENV_FILE` 建议直接保存整份 `.env` 内容
 
