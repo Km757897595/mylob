@@ -121,8 +121,6 @@ services:
       - './searxng-settings.yml:/etc/searxng/settings.yml'
     environment:
       - 'SEARXNG_SETTINGS_FILE=/etc/searxng/settings.yml'
-    env_file:
-      - .env
     restart: always
     networks:
       - lobe-network
