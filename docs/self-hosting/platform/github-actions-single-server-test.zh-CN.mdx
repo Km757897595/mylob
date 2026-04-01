@@ -1,7 +1,7 @@
 ---
 title: 通过 GitHub Actions 部署单机测试环境
 description: >-
-  使用 GitHub Actions、Docker Compose 和 SSH 将 LobeHub
+  使用 GitHub Actions、服务器本地私有 Registry、Docker Compose 和 SSH 将 LobeHub
   手动部署到单台公网服务器，用于验证视频生成等需要公网回调的功能。
 tags:
   - GitHub Actions
@@ -25,6 +25,7 @@ tags:
 
 部署完成后，服务器上将运行以下服务：
 
+- `registry`
 - `lobe`
 - `postgresql`
 - `redis`
@@ -37,6 +38,8 @@ tags:
 - LobeHub: `http://<服务器公网 IP>:3210`
 - RustFS: `http://<服务器公网 IP>:9000`
 - RustFS Admin: `http://<服务器公网 IP>:9001`
+
+其中，测试镜像会先推送到服务器本机私有 Registry，再由 `docker compose` 从 `localhost:5000` 拉取。这个 Registry 只绑定在服务器本机，不对公网开放。
 
 ## 为什么这套方案适合测试视频生成
 
@@ -70,6 +73,7 @@ docker compose version
 
 不建议对公网开放：
 
+- `5000`
 - `5432`
 - `6379`
 
@@ -88,7 +92,7 @@ docker compose version
 
 其中：
 
-- `DOCKER_REGISTRY_IMAGE` 填服务器本地要使用的镜像仓库名，例如 `mylob/test-deploy`
+- `DOCKER_REGISTRY_IMAGE` 填服务器本地私有 Registry 中使用的镜像仓库名，例如 `mylob/test-deploy`
 - `TEST_SERVER_DEPLOY_PATH` 推荐设置为 `/opt/lobehub-test`
 - `TEST_ENV_FILE` 建议直接保存整份 `.env` 内容
 
@@ -124,22 +128,23 @@ docker compose version
 触发后，工作流会执行：
 
 1. Checkout 目标代码
-2. 在 GitHub Actions 中构建测试镜像，并打包为镜像归档文件
-3. 通过 SSH 将镜像归档、`docker-compose.yml` 和 `.env` 上传到服务器
-4. 在服务器执行 `docker load && docker compose up -d`
-5. 检查首页是否可访问
+2. 在 GitHub Actions 中构建测试镜像
+3. 通过 SSH 在服务器上启动本地私有 Registry
+4. 通过 SSH 隧道把镜像推送到服务器本机 Registry
+5. 在服务器执行 `docker compose pull && docker compose up -d`
+6. 检查首页是否可访问
 
 ## 回滚
 
-若某次测试部署有问题，可以重新手动触发工作流，并在 `image_tag` 中填写服务器上已经存在的一个可用镜像 Tag。
+若某次测试部署有问题，可以重新手动触发工作流，并在 `image_tag` 中填写服务器本地私有 Registry 中已经存在的一个可用镜像 Tag。
 
 例如：
 
 `test-canary-abc1234`
 
-这会跳过构建和镜像上传，直接将服务器切回指定镜像版本。
+这会跳过构建和推送，直接将服务器切回指定镜像版本。
 
-注意：回滚时请让 `ref` 指向构建该镜像的同一提交。最稳妥的做法是直接填写对应的 Commit SHA，避免旧镜像与不匹配的部署文件混用。如果这个 `image_tag` 从未被加载到当前服务器，回滚会直接失败。
+注意：回滚时请让 `ref` 指向构建该镜像的同一提交。最稳妥的做法是直接填写对应的 Commit SHA，避免旧镜像与不匹配的部署文件混用。如果这个 `image_tag` 从未被推送到当前服务器本地 Registry，回滚会直接失败。
 
 ## 部署后验证
 

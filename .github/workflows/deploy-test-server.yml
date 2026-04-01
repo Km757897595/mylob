@@ -99,10 +99,11 @@ jobs:
           fi
 
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "full_image=${REGISTRY_IMAGE}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "Resolved image: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
+          echo "push_image=localhost:5001/${REGISTRY_IMAGE}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "full_image=localhost:5000/${REGISTRY_IMAGE}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved image: localhost:5000/${REGISTRY_IMAGE}:${IMAGE_TAG}"
 
-      - name: Build image archive
+      - name: Build app image
         if: ${{ inputs.image_tag == '' }}
         shell: bash
         run: |
@@ -110,11 +111,18 @@ jobs:
 
           docker build \
             --file "${{ steps.source.outputs.source_dir }}/Dockerfile" \
-            --tag "${{ steps.vars.outputs.full_image }}" \
+            --tag "${{ steps.vars.outputs.push_image }}" \
             --build-arg "SHA=${{ steps.source.outputs.commit_sha_short }}" \
             "${{ steps.source.outputs.source_dir }}"
 
-          docker save "${{ steps.vars.outputs.full_image }}" | gzip > /tmp/lobehub-test-image.tar.gz
+      - name: Prepare registry image archive
+        if: ${{ inputs.image_tag == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker pull registry:2
+          docker save registry:2 | gzip > /tmp/lobehub-test-registry.tar.gz
 
       - name: Validate rollback ref matches image tag
         if: ${{ inputs.image_tag != '' }}
@@ -194,14 +202,68 @@ jobs:
             /tmp/lobehub-test.env \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/.env"
 
-      - name: Upload image archive
+      - name: Upload registry image archive
         if: ${{ inputs.image_tag == '' }}
         shell: bash
         run: |
           set -euo pipefail
           scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
-            /tmp/lobehub-test-image.tar.gz \
-            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/lobehub-test-image.tar.gz"
+            /tmp/lobehub-test-registry.tar.gz \
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/lobehub-test-registry.tar.gz"
+
+      - name: Bootstrap remote registry
+        if: ${{ inputs.image_tag == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}" <<'EOF'
+          set -euo pipefail
+          cd "${{ secrets.TEST_SERVER_DEPLOY_PATH }}"
+
+          run_docker() {
+            docker "$@"
+          }
+
+          if ! docker info >/dev/null 2>&1; then
+            if sudo docker info >/dev/null 2>&1; then
+              run_docker() {
+                sudo docker "$@"
+              }
+            else
+              echo "Neither 'docker' nor 'sudo docker' can access the Docker daemon on the server." >&2
+              exit 1
+            fi
+          fi
+
+          run_docker load -i ./lobehub-test-registry.tar.gz
+          rm -f ./lobehub-test-registry.tar.gz
+          run_docker compose up -d registry
+
+          for i in $(seq 1 20); do
+            if curl --silent --fail http://127.0.0.1:5000/v2/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Remote registry did not become ready in time." >&2
+          exit 1
+          EOF
+
+      - name: Push app image to remote registry
+        if: ${{ inputs.image_tag == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ssh -f -N \
+            -L 5001:127.0.0.1:5000 \
+            -o ExitOnForwardFailure=yes \
+            -o ServerAliveInterval=60 \
+            -p "${{ secrets.TEST_SERVER_PORT }}" \
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}"
+
+          docker push "${{ steps.vars.outputs.push_image }}"
 
       - name: Deploy on remote server
         shell: bash
@@ -226,16 +288,13 @@ jobs:
             fi
           fi
 
-          if [ -z "${{ inputs.image_tag }}" ]; then
-            run_docker load -i ./lobehub-test-image.tar.gz
-            rm -f ./lobehub-test-image.tar.gz
-          else
-            run_docker image inspect "${{ steps.vars.outputs.full_image }}" >/dev/null 2>&1 || {
-              echo "Image '${{ steps.vars.outputs.full_image }}' does not exist on the server. Run a deployment without image_tag first, or use a tag that has already been loaded on this server." >&2
-              exit 1
-            }
-          fi
+          run_docker compose up -d registry
+          run_docker image inspect "${{ steps.vars.outputs.full_image }}" >/dev/null 2>&1 || {
+            echo "Image '${{ steps.vars.outputs.full_image }}' does not exist in the server local registry or local image store." >&2
+            exit 1
+          }
 
+          run_docker compose pull lobe
           run_docker compose up -d
           run_docker compose ps
           run_docker image prune -f

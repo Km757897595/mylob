@@ -1,6 +1,17 @@
 name: lobehub-test
 
 services:
+  registry:
+    image: registry:2
+    container_name: lobe-test-registry
+    ports:
+      - '127.0.0.1:5000:5000'
+    volumes:
+      - 'registry_data:/var/lib/registry'
+    restart: always
+    networks:
+      - lobe-network
+
   lobe:
     image: ${LOBE_IMAGE}
     container_name: lobehub-test
@@ -15,6 +26,8 @@ services:
         condition: service_healthy
       rustfs-init:
         condition: service_completed_successfully
+      registry:
+        condition: service_started
     environment:
       - 'KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}'
       - 'AUTH_SECRET=${AUTH_SECRET}'
@@ -130,6 +143,8 @@ networks:
     driver: bridge
 
 volumes:
+  registry_data:
+    driver: local
   redis_data:
     driver: local
   rustfs-data:
