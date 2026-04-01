@@ -28,7 +28,7 @@ services:
       - 'S3_SECRET_ACCESS_KEY=${RUSTFS_SECRET_KEY}'
       - 'S3_SET_ACL=0'
       - 'LLM_VISION_IMAGE_USE_BASE64=1'
-      - 'SEARXNG_URL=http://searxng:8080'
+      - 'SEARXNG_URL=${SEARXNG_BASE_URL}'
       - 'REDIS_URL=redis://redis:6379'
       - 'REDIS_PREFIX=lobechat'
       - 'REDIS_TLS=0'
