@@ -249,6 +249,12 @@ bash <(curl -fsSL https://lobe.li/setup.sh) -l zh_CN
   你可以通过 `https://lobe.example.com` 访问你的 LobeHub 服务。
 </Steps>
 
+## 测试环境自动部署
+
+如果你的目标是快速搭建一套 “单台公网服务器 + Docker Compose + GitHub Actions 手动触发” 的测试环境，用于验证视频生成 webhook 等需要公网回调的功能，可以继续阅读：
+
+- [通过 GitHub Actions 部署单机测试环境](./github-actions-single-server-test)
+
 ## 自定义部署
 
 该章节主要为你介绍在不同的网络环境下自定义部署 LobeHub 服务必须要修改的配置。在开始前，你可以先下载 [Docker Compose 配置文件](https://raw.githubusercontent.com/lobehub/lobehub/HEAD/docker-compose/deploy/docker-compose.yml) 以及 [环境变量配置文件](https://raw.githubusercontent.com/lobehub/lobehub/HEAD/docker-compose/deploy/.env.zh-CN.example)。

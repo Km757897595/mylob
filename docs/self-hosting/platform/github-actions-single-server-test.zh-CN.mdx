@@ -1,0 +1,190 @@
+---
+title: 通过 GitHub Actions 部署单机测试环境
+description: 使用 Docker Hub、Docker Compose 和 SSH 将 LobeHub 手动部署到单台公网服务器，用于验证视频生成等需要公网回调的功能。
+tags:
+  - GitHub Actions
+  - Docker Compose
+  - Self-Hosting
+  - Test Environment
+---
+
+# 通过 GitHub Actions 部署单机测试环境
+
+本文档面向 “单台云服务器 + Docker Compose + 公网 IP: 端口访问” 的测试环境，适合验证视频生成 webhook 等本地环境难以完整联调的功能。
+
+## 适用场景
+
+- 你已经有一台可 SSH 登录的 Linux 云服务器
+- 服务器已安装 Docker 和 Docker Compose
+- 你暂时没有域名，计划直接使用公网 IP: 端口访问
+- 你希望通过 GitHub Actions 手动触发部署，而不是每次 push 自动发布
+
+## 最终部署结果
+
+部署完成后，服务器上将运行以下服务：
+
+- `lobe`
+- `postgresql`
+- `redis`
+- `rustfs`
+- `rustfs-init`
+- `searxng`
+
+默认访问地址：
+
+- LobeHub: `http://<服务器公网 IP>:3210`
+- RustFS: `http://<服务器公网 IP>:9000`
+- RustFS Admin: `http://<服务器公网 IP>:9001`
+
+## 为什么这套方案适合测试视频生成
+
+视频生成依赖外部模型供应商回调应用的 webhook 地址。若应用运行在本地 `localhost`，外部服务无法访问该地址，任务就会停留在处理中。
+
+将 `APP_URL` 配置为公网服务器地址后，外部服务就可以访问：
+
+`http://<服务器公网 IP>:3210/api/webhooks/video/<provider>`
+
+这个公网 webhook 地址的意义在于：它是外部视频模型供应商把任务结果、状态更新或失败回调送回 LobeHub 的入口。只有这个地址对供应商可达，视频任务才能从 “处理中” 继续推进到成功或失败。
+
+这样就能验证完整的视频生成闭环。
+
+## 服务器初始化
+
+首次部署前，在服务器上执行：
+
+```bash
+mkdir -p /opt/lobehub-test
+cd /opt/lobehub-test
+docker --version
+docker compose version
+```
+
+建议同时开放以下安全组或防火墙端口：
+
+- `3210`
+- `9000`
+- `9001`
+- `22`
+
+不建议对公网开放：
+
+- `5432`
+- `6379`
+
+## GitHub Secrets 清单
+
+在仓库的 GitHub Actions Secrets 中添加以下字段：
+
+- `DOCKER_REGISTRY_USER`
+- `DOCKER_REGISTRY_PASSWORD`
+- `TEST_SERVER_HOST`
+- `TEST_SERVER_PORT`
+- `TEST_SERVER_USER`
+- `TEST_SERVER_SSH_KEY`
+- `TEST_SERVER_DEPLOY_PATH`
+- `TEST_ENV_FILE`
+- 可选：`TEST_SERVER_KNOWN_HOSTS`
+
+其中：
+
+- `TEST_SERVER_DEPLOY_PATH` 推荐设置为 `/opt/lobehub-test`
+- `TEST_ENV_FILE` 建议直接保存整份 `.env` 内容
+
+## TEST\_ENV\_FILE 示例
+
+可以基于 `docker-compose/deploy/.env.test.example.zh-CN` 生成一份实际值版本，再整体复制到 GitHub Secret 中。
+
+至少需要替换：
+
+- `APP_URL`
+- `KEY_VAULTS_SECRET`
+- `AUTH_SECRET`
+- `POSTGRES_PASSWORD`
+- `RUSTFS_ACCESS_KEY`
+- `RUSTFS_SECRET_KEY`
+- 视频模型供应商 API Key
+
+## 手动触发部署
+
+打开 GitHub 仓库：
+
+`Actions` -> `Deploy Test Server`
+
+填写：
+
+- `ref`
+  要部署的分支、Tag 或 Commit SHA
+- `image_tag`
+  留空表示重新构建镜像；填已有 Tag 表示直接部署该 Tag，可用于回滚
+
+触发后，工作流会执行：
+
+1. Checkout 目标代码
+2. 构建并推送测试镜像
+3. 通过 SSH 将 `docker-compose.yml` 和 `.env` 上传到服务器
+4. 在服务器执行 `docker compose pull && docker compose up -d`
+5. 检查首页是否可访问
+
+## 回滚
+
+若某次测试部署有问题，可以重新手动触发工作流，并在 `image_tag` 中填写上一个可用镜像 Tag。
+
+例如：
+
+`test-canary-abc1234`
+
+这会跳过构建，直接将服务器切回指定镜像版本。
+
+## 部署后验证
+
+建议按顺序验证：
+
+1. 访问首页\
+   `http://<服务器公网 IP>:3210`
+
+2. 查看容器状态
+   ```bash
+   cd /opt/lobehub-test
+   docker compose ps
+   ```
+
+3. 查看应用日志
+   ```bash
+   docker logs --tail=200 lobehub-test
+   ```
+
+4. 验证对象存储\
+   访问 `http://<服务器公网 IP>:9000`
+
+5. 验证视频生成功能\
+   重点检查：
+   - 任务是否能成功提交
+   - webhook 是否被接收
+   - 任务状态是否能从处理中变为成功或失败
+
+## 常见问题
+
+### 1. 页面能打开，但视频任务仍然卡住
+
+优先检查：
+
+- `APP_URL` 是否为公网可达地址
+- 服务器 `3210` 端口是否已放行
+- 模型供应商是否能回调到 `/api/webhooks/video/<provider>`
+- 容器日志中是否出现 webhook 相关报错
+
+### 2. 上传图片或生成资源失败
+
+优先检查：
+
+- `S3_ENDPOINT` 是否配置为浏览器可访问地址
+- `9000` 端口是否已放行
+- RustFS bucket 是否初始化成功
+
+### 3. SSH 部署失败
+
+优先检查：
+
+- `TEST_SERVER_SSH_KEY` 是否正确
+- `TEST_SERVER_USER` 是否具备 Docker 执行权限
+- `TEST_SERVER_PORT` 是否和实际 SSH 端口一致
