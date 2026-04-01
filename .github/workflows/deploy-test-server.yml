@@ -6,7 +6,7 @@ on:
       ref:
         description: '要部署的分支、Tag 或 Commit SHA'
         required: true
-        default: 'canary'
+        default: 'sd'
         type: string
       image_tag:
         description: '可选：指定已有镜像 Tag 用于回滚/复用。此时 ref 必须指向构建该镜像的同一提交；留空时自动按 ref + sha 构建新镜像'
@@ -37,10 +37,12 @@ jobs:
           rm -rf "${SOURCE_DIR}"
           mkdir -p "${SOURCE_DIR}"
 
-          COMMIT_SHA=$(curl --silent --show-error --location \
+          API_RESPONSE=$(curl --silent --show-error --location \
             -H "Authorization: Bearer ${{ github.token }}" \
             -H "Accept: application/vnd.github+json" \
-            "${API_URL}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')
+            "${API_URL}")
+
+          COMMIT_SHA=$(printf '%s' "${API_RESPONSE}" | python3 -c 'import json,sys; payload=json.load(sys.stdin); sha=payload.get("sha"); message=payload.get("message", "Unknown error"); print(sha) if sha else (print(f"Failed to resolve ref: {message}", file=sys.stderr), sys.exit(1))')
 
           SHA_SHORT="${COMMIT_SHA:0:7}"
           TARBALL_URL="${{ github.api_url }}/repos/${{ github.repository }}/tarball/${COMMIT_SHA}"
