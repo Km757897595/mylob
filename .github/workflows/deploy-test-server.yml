@@ -194,19 +194,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+          scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/docker-compose.test.yml" \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/docker-compose.yml"
 
-          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+          scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/bucket.config.json" \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/bucket.config.json"
 
-          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+          scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/searxng-settings.yml" \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/searxng-settings.yml"
 
-          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+          scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             /tmp/lobehub-test.env \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/.env"
 
