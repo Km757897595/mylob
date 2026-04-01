@@ -24,10 +24,35 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout target ref
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.ref }}
+      - name: Download target source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SOURCE_DIR=/tmp/lobehub-test-src
+          ENCODED_REF=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "${{ inputs.ref }}")
+          API_URL="${{ github.api_url }}/repos/${{ github.repository }}/commits/${ENCODED_REF}"
+
+          rm -rf "${SOURCE_DIR}"
+          mkdir -p "${SOURCE_DIR}"
+
+          COMMIT_SHA=$(curl --silent --show-error --location \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${API_URL}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')
+
+          SHA_SHORT="${COMMIT_SHA:0:7}"
+          TARBALL_URL="${{ github.api_url }}/repos/${{ github.repository }}/tarball/${COMMIT_SHA}"
+
+          curl --silent --show-error --location \
+            -H "Authorization: Bearer ${{ github.token }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${TARBALL_URL}" | tar -xz --strip-components=1 -C "${SOURCE_DIR}"
+
+          echo "source_dir=${SOURCE_DIR}" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "commit_sha_short=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve image tag
         id: vars
@@ -40,7 +65,7 @@ jobs:
           else
             REF_NAME="${{ inputs.ref }}"
             REF_SANITIZED=$(echo "${REF_NAME}" | sed -E 's/[^a-zA-Z0-9_.-]+/-/g')
-            SHA_SHORT=$(git rev-parse --short HEAD)
+            SHA_SHORT="${{ steps.source.outputs.commit_sha_short }}"
             IMAGE_TAG="test-${REF_SANITIZED}-${SHA_SHORT}"
           fi
 
@@ -48,27 +73,23 @@ jobs:
           echo "full_image=${REGISTRY_IMAGE}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "Resolved image: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
 
-      - name: Docker login
-        if: ${{ inputs.image_tag == '' }}
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_REGISTRY_USER }}
-          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
-
-      - name: Set up Docker Buildx
-        if: ${{ inputs.image_tag == '' }}
-        uses: docker/setup-buildx-action@v3
-
       - name: Build and push image
         if: ${{ inputs.image_tag == '' }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.vars.outputs.full_image }}
-          build-args: |
-            SHA=${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login \
+            --username "${{ secrets.DOCKER_REGISTRY_USER }}" \
+            --password-stdin
+
+          docker build \
+            --file "${{ steps.source.outputs.source_dir }}/Dockerfile" \
+            --tag "${{ steps.vars.outputs.full_image }}" \
+            --build-arg "SHA=${{ steps.source.outputs.commit_sha_short }}" \
+            "${{ steps.source.outputs.source_dir }}"
+
+          docker push "${{ steps.vars.outputs.full_image }}"
 
       - name: Validate rollback ref matches image tag
         if: ${{ inputs.image_tag != '' }}
@@ -77,7 +98,7 @@ jobs:
           set -euo pipefail
 
           IMAGE_TAG="${{ inputs.image_tag }}"
-          CHECKOUT_SHA=$(git rev-parse --short HEAD)
+          CHECKOUT_SHA="${{ steps.source.outputs.commit_sha_short }}"
 
           if [[ "${IMAGE_TAG}" =~ ^test-.+-([a-f0-9]+)$ ]]; then
             TAG_SHA="${BASH_REMATCH[1]}"
@@ -133,15 +154,15 @@ jobs:
         run: |
           set -euo pipefail
           scp -P "${{ secrets.TEST_SERVER_PORT }}" \
-            docker-compose/deploy/docker-compose.test.yml \
+            "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/docker-compose.test.yml" \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/docker-compose.yml"
 
           scp -P "${{ secrets.TEST_SERVER_PORT }}" \
-            docker-compose/deploy/bucket.config.json \
+            "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/bucket.config.json" \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/bucket.config.json"
 
           scp -P "${{ secrets.TEST_SERVER_PORT }}" \
-            docker-compose/deploy/searxng-settings.yml \
+            "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/searxng-settings.yml" \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/searxng-settings.yml"
 
           scp -P "${{ secrets.TEST_SERVER_PORT }}" \
@@ -155,7 +176,9 @@ jobs:
           ssh -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}" <<'EOF'
           set -euo pipefail
           cd "${{ secrets.TEST_SERVER_DEPLOY_PATH }}"
-          docker login -u "${{ secrets.DOCKER_REGISTRY_USER }}" -p "${{ secrets.DOCKER_REGISTRY_PASSWORD }}"
+          printf '%s\n' "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login \
+            --username "${{ secrets.DOCKER_REGISTRY_USER }}" \
+            --password-stdin
           docker compose pull
           docker compose up -d
           docker compose ps
