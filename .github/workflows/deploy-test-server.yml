@@ -9,7 +9,7 @@ on:
         default: 'canary'
         type: string
       image_tag:
-        description: '可选：指定已有镜像 Tag。留空时自动按 ref + sha 构建新镜像'
+        description: '可选：指定已有镜像 Tag 用于回滚/复用。此时 ref 必须指向构建该镜像的同一提交；留空时自动按 ref + sha 构建新镜像'
         required: false
         default: ''
         type: string
@@ -69,6 +69,32 @@ jobs:
           tags: ${{ steps.vars.outputs.full_image }}
           build-args: |
             SHA=${{ github.sha }}
+
+      - name: Validate rollback ref matches image tag
+        if: ${{ inputs.image_tag != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE_TAG="${{ inputs.image_tag }}"
+          CHECKOUT_SHA=$(git rev-parse --short HEAD)
+
+          if [[ "${IMAGE_TAG}" =~ ^test-.+-([a-f0-9]+)$ ]]; then
+            TAG_SHA="${BASH_REMATCH[1]}"
+
+            if [ "${TAG_SHA}" != "${CHECKOUT_SHA}" ]; then
+              echo "Rollback validation failed: image_tag '${IMAGE_TAG}' was not built from the checked out ref."
+              echo "Current ref short SHA: ${CHECKOUT_SHA}"
+              echo "Tag short SHA: ${TAG_SHA}"
+              echo "Use a ref that points to the same commit as the image tag, or leave image_tag empty to build a new image."
+              exit 1
+            fi
+
+            echo "Rollback validation passed for image_tag '${IMAGE_TAG}' and ref SHA '${CHECKOUT_SHA}'."
+          else
+            echo "image_tag '${IMAGE_TAG}' does not match the default test tag pattern test-...-<sha>."
+            echo "Unable to auto-validate rollback safety; ensure ref and image_tag point to the same commit."
+          fi
 
       - name: Prepare SSH config
         shell: bash
