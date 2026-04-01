@@ -28,8 +28,6 @@ jobs:
         shell: bash
         env:
           DOCKER_REGISTRY_IMAGE: ${{ secrets.DOCKER_REGISTRY_IMAGE }}
-          DOCKER_REGISTRY_USER: ${{ secrets.DOCKER_REGISTRY_USER }}
-          DOCKER_REGISTRY_PASSWORD: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
           TEST_SERVER_HOST: ${{ secrets.TEST_SERVER_HOST }}
           TEST_SERVER_PORT: ${{ secrets.TEST_SERVER_PORT }}
           TEST_SERVER_USER: ${{ secrets.TEST_SERVER_USER }}
@@ -47,19 +45,9 @@ jobs:
             fi
           done
 
-          if [ -z "${{ inputs.image_tag }}" ]; then
-            for name in DOCKER_REGISTRY_USER DOCKER_REGISTRY_PASSWORD; do
-              if [ -z "${!name:-}" ]; then
-                missing+=("${name}")
-              fi
-            done
-          fi
-
           if [ "${#missing[@]}" -gt 0 ]; then
             printf 'Missing required GitHub Secrets: %s\n' "${missing[*]}" >&2
-            echo "DOCKER_REGISTRY_IMAGE should be your writable Docker Hub repository, for example: your-dockerhub-name/mylob" >&2
-            echo "If you are building a new image, DOCKER_REGISTRY_USER and DOCKER_REGISTRY_PASSWORD must be configured." >&2
-            echo "If you only want to redeploy an existing image, provide image_tag to skip the build step." >&2
+            echo "DOCKER_REGISTRY_IMAGE should be a local image repository name used on the runner and server, for example: mylob/test-deploy" >&2
             exit 1
           fi
 
@@ -114,15 +102,11 @@ jobs:
           echo "full_image=${REGISTRY_IMAGE}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "Resolved image: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
 
-      - name: Build and push image
+      - name: Build image archive
         if: ${{ inputs.image_tag == '' }}
         shell: bash
         run: |
           set -euo pipefail
-
-          echo "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login \
-            --username "${{ secrets.DOCKER_REGISTRY_USER }}" \
-            --password-stdin
 
           docker build \
             --file "${{ steps.source.outputs.source_dir }}/Dockerfile" \
@@ -130,7 +114,7 @@ jobs:
             --build-arg "SHA=${{ steps.source.outputs.commit_sha_short }}" \
             "${{ steps.source.outputs.source_dir }}"
 
-          docker push "${{ steps.vars.outputs.full_image }}"
+          docker save "${{ steps.vars.outputs.full_image }}" | gzip > /tmp/lobehub-test-image.tar.gz
 
       - name: Validate rollback ref matches image tag
         if: ${{ inputs.image_tag != '' }}
@@ -210,6 +194,15 @@ jobs:
             /tmp/lobehub-test.env \
             "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/.env"
 
+      - name: Upload image archive
+        if: ${{ inputs.image_tag == '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
+            /tmp/lobehub-test-image.tar.gz \
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/lobehub-test-image.tar.gz"
+
       - name: Deploy on remote server
         shell: bash
         run: |
@@ -233,10 +226,16 @@ jobs:
             fi
           fi
 
-          printf '%s\n' "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | run_docker login \
-            --username "${{ secrets.DOCKER_REGISTRY_USER }}" \
-            --password-stdin
-          run_docker compose pull
+          if [ -z "${{ inputs.image_tag }}" ]; then
+            run_docker load -i ./lobehub-test-image.tar.gz
+            rm -f ./lobehub-test-image.tar.gz
+          else
+            run_docker image inspect "${{ steps.vars.outputs.full_image }}" >/dev/null 2>&1 || {
+              echo "Image '${{ steps.vars.outputs.full_image }}' does not exist on the server. Run a deployment without image_tag first, or use a tag that has already been loaded on this server." >&2
+              exit 1
+            }
+          fi
+
           run_docker compose up -d
           run_docker compose ps
           run_docker image prune -f
