@@ -1,0 +1,151 @@
+name: Deploy Test Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: '要部署的分支、Tag 或 Commit SHA'
+        required: true
+        default: 'canary'
+        type: string
+      image_tag:
+        description: '可选：指定已有镜像 Tag。留空时自动按 ref + sha 构建新镜像'
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY_IMAGE: lobehub/lobehub
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Resolve image tag
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${{ inputs.image_tag }}" ]; then
+            IMAGE_TAG="${{ inputs.image_tag }}"
+          else
+            REF_NAME="${{ inputs.ref }}"
+            REF_SANITIZED=$(echo "${REF_NAME}" | sed -E 's/[^a-zA-Z0-9_.-]+/-/g')
+            SHA_SHORT=$(git rev-parse --short HEAD)
+            IMAGE_TAG="test-${REF_SANITIZED}-${SHA_SHORT}"
+          fi
+
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "full_image=${REGISTRY_IMAGE}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved image: ${REGISTRY_IMAGE}:${IMAGE_TAG}"
+
+      - name: Docker login
+        if: ${{ inputs.image_tag == '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_REGISTRY_USER }}
+          password: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        if: ${{ inputs.image_tag == '' }}
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        if: ${{ inputs.image_tag == '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.vars.outputs.full_image }}
+          build-args: |
+            SHA=${{ github.sha }}
+
+      - name: Prepare SSH config
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.TEST_SERVER_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          if [ -n "${{ secrets.TEST_SERVER_KNOWN_HOSTS }}" ]; then
+            printf '%s\n' "${{ secrets.TEST_SERVER_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_HOST }}" >> ~/.ssh/known_hosts
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Render remote env file
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/lobehub-test.env <<EOF
+          LOBE_IMAGE=${{ steps.vars.outputs.full_image }}
+          ${{ secrets.TEST_ENV_FILE }}
+          EOF
+
+      - name: Prepare remote deploy directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}" \
+            "mkdir -p '${{ secrets.TEST_SERVER_DEPLOY_PATH }}'"
+
+      - name: Upload compose and env files
+        shell: bash
+        run: |
+          set -euo pipefail
+          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+            docker-compose/deploy/docker-compose.test.yml \
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/docker-compose.yml"
+
+          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+            docker-compose/deploy/bucket.config.json \
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/bucket.config.json"
+
+          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+            docker-compose/deploy/searxng-settings.yml \
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/searxng-settings.yml"
+
+          scp -P "${{ secrets.TEST_SERVER_PORT }}" \
+            /tmp/lobehub-test.env \
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/.env"
+
+      - name: Deploy on remote server
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}" <<'EOF'
+          set -euo pipefail
+          cd "${{ secrets.TEST_SERVER_DEPLOY_PATH }}"
+          docker login -u "${{ secrets.DOCKER_REGISTRY_USER }}" -p "${{ secrets.DOCKER_REGISTRY_PASSWORD }}"
+          docker compose pull
+          docker compose up -d
+          docker compose ps
+          docker image prune -f
+          EOF
+
+      - name: Check app endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --retry 10 --retry-delay 5 "http://${{ secrets.TEST_SERVER_HOST }}:3210/" >/tmp/lobehub-test-home.html
+          test -s /tmp/lobehub-test-home.html
+
+      - name: Print deployment result
+        shell: bash
+        run: |
+          echo "部署完成"
+          echo "镜像: ${{ steps.vars.outputs.full_image }}"
+          echo "访问地址: http://${{ secrets.TEST_SERVER_HOST }}:3210"
