@@ -235,9 +235,28 @@ jobs:
             fi
           fi
 
+          run_compose() {
+            run_docker compose "$@"
+          }
+
+          if ! run_compose version >/dev/null 2>&1; then
+            if command -v docker-compose >/dev/null 2>&1 && docker-compose version >/dev/null 2>&1; then
+              run_compose() {
+                docker-compose "$@"
+              }
+            elif command -v sudo >/dev/null 2>&1 && sudo docker-compose version >/dev/null 2>&1; then
+              run_compose() {
+                sudo docker-compose "$@"
+              }
+            else
+              echo "Neither 'docker compose' nor 'docker-compose' is available on the server." >&2
+              exit 1
+            fi
+          fi
+
           run_docker load -i ./lobehub-test-registry.tar.gz
           rm -f ./lobehub-test-registry.tar.gz
-          run_docker compose up -d registry
+          run_compose up -d registry
 
           for i in $(seq 1 20); do
             if curl --silent --fail http://127.0.0.1:5000/v2/ >/dev/null; then
@@ -288,15 +307,34 @@ jobs:
             fi
           fi
 
-          run_docker compose up -d registry
+          run_compose() {
+            run_docker compose "$@"
+          }
+
+          if ! run_compose version >/dev/null 2>&1; then
+            if command -v docker-compose >/dev/null 2>&1 && docker-compose version >/dev/null 2>&1; then
+              run_compose() {
+                docker-compose "$@"
+              }
+            elif command -v sudo >/dev/null 2>&1 && sudo docker-compose version >/dev/null 2>&1; then
+              run_compose() {
+                sudo docker-compose "$@"
+              }
+            else
+              echo "Neither 'docker compose' nor 'docker-compose' is available on the server." >&2
+              exit 1
+            fi
+          fi
+
+          run_compose up -d registry
           run_docker image inspect "${{ steps.vars.outputs.full_image }}" >/dev/null 2>&1 || {
             echo "Image '${{ steps.vars.outputs.full_image }}' does not exist in the server local registry or local image store." >&2
             exit 1
           }
 
-          run_docker compose pull lobe
-          run_docker compose up -d
-          run_docker compose ps
+          run_compose pull lobe
+          run_compose up -d
+          run_compose ps
           run_docker image prune -f
           EOF
 
