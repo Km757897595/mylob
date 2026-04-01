@@ -217,13 +217,29 @@ jobs:
           ssh -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}" <<'EOF'
           set -euo pipefail
           cd "${{ secrets.TEST_SERVER_DEPLOY_PATH }}"
-          printf '%s\n' "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | docker login \
+
+          run_docker() {
+            docker "$@"
+          }
+
+          if ! docker info >/dev/null 2>&1; then
+            if sudo docker info >/dev/null 2>&1; then
+              run_docker() {
+                sudo docker "$@"
+              }
+            else
+              echo "Neither 'docker' nor 'sudo docker' can access the Docker daemon on the server." >&2
+              exit 1
+            fi
+          fi
+
+          printf '%s\n' "${{ secrets.DOCKER_REGISTRY_PASSWORD }}" | run_docker login \
             --username "${{ secrets.DOCKER_REGISTRY_USER }}" \
             --password-stdin
-          docker compose pull
-          docker compose up -d
-          docker compose ps
-          docker image prune -f
+          run_docker compose pull
+          run_docker compose up -d
+          run_docker compose ps
+          run_docker image prune -f
           EOF
 
       - name: Check app endpoint
