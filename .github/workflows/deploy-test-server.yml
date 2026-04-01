@@ -327,8 +327,8 @@ jobs:
           fi
 
           run_compose up -d registry
-          run_docker image inspect "${{ steps.vars.outputs.full_image }}" >/dev/null 2>&1 || {
-            echo "Image '${{ steps.vars.outputs.full_image }}' does not exist in the server local registry or local image store." >&2
+          run_docker pull "${{ steps.vars.outputs.full_image }}" >/dev/null 2>&1 || {
+            echo "Image '${{ steps.vars.outputs.full_image }}' does not exist in the server local registry." >&2
             exit 1
           }
 
