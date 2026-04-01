@@ -117,6 +117,8 @@ docker compose version
 - `image_tag`
   留空表示重新构建镜像；填已有 Tag 表示直接部署该 Tag，可用于回滚
 
+如果你填写了 `image_tag`，建议将 `ref` 一并填写为构建该镜像时对应的 Commit SHA。对于 workflow 自动生成的 `test-...-<sha>` 标签，系统会校验 `ref` 与镜像标签中的提交是否一致。
+
 触发后，工作流会执行：
 
 1. Checkout 目标代码
@@ -134,6 +136,8 @@ docker compose version
 `test-canary-abc1234`
 
 这会跳过构建，直接将服务器切回指定镜像版本。
+
+注意：回滚时请让 `ref` 指向构建该镜像的同一提交。最稳妥的做法是直接填写对应的 Commit SHA，避免旧镜像与不匹配的部署文件混用。
 
 ## 部署后验证
 
