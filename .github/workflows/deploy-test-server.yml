@@ -24,6 +24,43 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Validate required secrets
+        shell: bash
+        env:
+          DOCKER_REGISTRY_USER: ${{ secrets.DOCKER_REGISTRY_USER }}
+          DOCKER_REGISTRY_PASSWORD: ${{ secrets.DOCKER_REGISTRY_PASSWORD }}
+          TEST_SERVER_HOST: ${{ secrets.TEST_SERVER_HOST }}
+          TEST_SERVER_PORT: ${{ secrets.TEST_SERVER_PORT }}
+          TEST_SERVER_USER: ${{ secrets.TEST_SERVER_USER }}
+          TEST_SERVER_SSH_KEY: ${{ secrets.TEST_SERVER_SSH_KEY }}
+          TEST_SERVER_DEPLOY_PATH: ${{ secrets.TEST_SERVER_DEPLOY_PATH }}
+          TEST_ENV_FILE: ${{ secrets.TEST_ENV_FILE }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+
+          for name in TEST_SERVER_HOST TEST_SERVER_PORT TEST_SERVER_USER TEST_SERVER_SSH_KEY TEST_SERVER_DEPLOY_PATH TEST_ENV_FILE; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("${name}")
+            fi
+          done
+
+          if [ -z "${{ inputs.image_tag }}" ]; then
+            for name in DOCKER_REGISTRY_USER DOCKER_REGISTRY_PASSWORD; do
+              if [ -z "${!name:-}" ]; then
+                missing+=("${name}")
+              fi
+            done
+          fi
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf 'Missing required GitHub Secrets: %s\n' "${missing[*]}" >&2
+            echo "If you are building a new image, DOCKER_REGISTRY_USER and DOCKER_REGISTRY_PASSWORD must be configured." >&2
+            echo "If you only want to redeploy an existing image, provide image_tag to skip the build step." >&2
+            exit 1
+          fi
+
       - name: Download target source
         id: source
         shell: bash
