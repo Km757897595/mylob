@@ -170,10 +170,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > /tmp/lobehub-test.env <<EOF
-          LOBE_IMAGE=${{ steps.vars.outputs.full_image }}
-          ${{ secrets.TEST_ENV_FILE }}
-          EOF
+          {
+            printf 'LOBE_IMAGE=%s\n' "${{ steps.vars.outputs.full_image }}"
+            printf '%s\n' "${{ secrets.TEST_ENV_FILE }}" | grep -v '^LOBE_IMAGE='
+          } > /tmp/lobehub-test.env
 
       - name: Prepare remote deploy directory
         shell: bash
