@@ -180,7 +180,7 @@ jobs:
         run: |
           set -euo pipefail
           ssh -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}" \
-            "mkdir -p '${{ secrets.TEST_SERVER_DEPLOY_PATH }}'"
+            "mkdir -p '${{ secrets.TEST_SERVER_DEPLOY_PATH }}' /tmp/lobehub-test-upload"
 
       - name: Upload compose and env files
         shell: bash
@@ -188,19 +188,19 @@ jobs:
           set -euo pipefail
           scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/docker-compose.test.yml" \
-            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/docker-compose.yml"
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:/tmp/lobehub-test-upload/docker-compose.yml"
 
           scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/bucket.config.json" \
-            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/bucket.config.json"
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:/tmp/lobehub-test-upload/bucket.config.json"
 
           scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             "${{ steps.source.outputs.source_dir }}/docker-compose/deploy/searxng-settings.yml" \
-            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/searxng-settings.yml"
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:/tmp/lobehub-test-upload/searxng-settings.yml"
 
           scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             /tmp/lobehub-test.env \
-            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/.env"
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:/tmp/lobehub-test-upload/.env"
 
       - name: Upload registry image archive
         if: ${{ inputs.image_tag == '' }}
@@ -209,7 +209,38 @@ jobs:
           set -euo pipefail
           scp -O -P "${{ secrets.TEST_SERVER_PORT }}" \
             /tmp/lobehub-test-registry.tar.gz \
-            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:${{ secrets.TEST_SERVER_DEPLOY_PATH }}/lobehub-test-registry.tar.gz"
+            "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}:/tmp/lobehub-test-upload/lobehub-test-registry.tar.gz"
+
+      - name: Install uploaded deploy files
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -p "${{ secrets.TEST_SERVER_PORT }}" "${{ secrets.TEST_SERVER_USER }}@${{ secrets.TEST_SERVER_HOST }}" <<'EOF'
+          set -euo pipefail
+
+          DEPLOY_PATH="${{ secrets.TEST_SERVER_DEPLOY_PATH }}"
+          UPLOAD_PATH="/tmp/lobehub-test-upload"
+          USER_NAME=$(id -un)
+          GROUP_NAME=$(id -gn)
+
+          install_uploaded_file() {
+            local src="$1"
+            local dest="$2"
+
+            sudo install -D -m 0644 "${src}" "${dest}"
+            sudo chown "${USER_NAME}:${GROUP_NAME}" "${dest}"
+            rm -f "${src}"
+          }
+
+          install_uploaded_file "${UPLOAD_PATH}/docker-compose.yml" "${DEPLOY_PATH}/docker-compose.yml"
+          install_uploaded_file "${UPLOAD_PATH}/bucket.config.json" "${DEPLOY_PATH}/bucket.config.json"
+          install_uploaded_file "${UPLOAD_PATH}/searxng-settings.yml" "${DEPLOY_PATH}/searxng-settings.yml"
+          install_uploaded_file "${UPLOAD_PATH}/.env" "${DEPLOY_PATH}/.env"
+
+          if [ -f "${UPLOAD_PATH}/lobehub-test-registry.tar.gz" ]; then
+            install_uploaded_file "${UPLOAD_PATH}/lobehub-test-registry.tar.gz" "${DEPLOY_PATH}/lobehub-test-registry.tar.gz"
+          fi
+          EOF
 
       - name: Bootstrap remote registry
         if: ${{ inputs.image_tag == '' }}
