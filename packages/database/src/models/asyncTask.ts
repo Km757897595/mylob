@@ -1,7 +1,15 @@
-import { ASYNC_TASK_TIMEOUT } from '@lobechat/business-config/server';
-import type { AsyncTaskType, UserMemoryExtractionMetadata } from '@lobechat/types';
-import { AsyncTaskError, AsyncTaskErrorType, AsyncTaskStatus } from '@lobechat/types';
-import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import {
+  ASYNC_TASK_TIMEOUT,
+  VIDEO_GENERATION_ASYNC_TASK_TIMEOUT,
+} from '@lobechat/business-config/server';
+import type { UserMemoryExtractionMetadata } from '@lobechat/types';
+import {
+  AsyncTaskError,
+  AsyncTaskErrorType,
+  AsyncTaskStatus,
+  AsyncTaskType,
+} from '@lobechat/types';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 
 import type { AsyncTaskSelectItem, NewAsyncTaskItem } from '../schemas';
 import { asyncTasks } from '../schemas';
@@ -111,11 +119,12 @@ export class AsyncTaskModel {
   };
 
   /**
-   * make the task status to be `error` if the task is not finished in 20 seconds
+   * Mark active tasks as error when they exceed their task-specific timeout budget.
    */
   checkTimeoutTasks = async (ids: string[]) => {
+    const now = Date.now();
     const tasks = await this.db
-      .select({ id: asyncTasks.id })
+      .select({ createdAt: asyncTasks.createdAt, id: asyncTasks.id, type: asyncTasks.type })
       .from(asyncTasks)
       .where(
         and(
@@ -124,11 +133,14 @@ export class AsyncTaskModel {
             eq(asyncTasks.status, AsyncTaskStatus.Pending),
             eq(asyncTasks.status, AsyncTaskStatus.Processing),
           ),
-          lt(asyncTasks.createdAt, new Date(Date.now() - ASYNC_TASK_TIMEOUT)),
         ),
       );
 
-    if (tasks.length > 0) {
+    const timedOutTaskIds = tasks
+      .filter((task) => task.createdAt.getTime() < now - getAsyncTaskTimeoutMs(task.type))
+      .map((task) => task.id);
+
+    if (timedOutTaskIds.length > 0) {
       await this.db
         .update(asyncTasks)
         .set({
@@ -138,15 +150,18 @@ export class AsyncTaskModel {
           ),
           status: AsyncTaskStatus.Error,
         })
-        .where(
-          inArray(
-            asyncTasks.id,
-            tasks.map((item) => item.id),
-          ),
-        );
+        .where(inArray(asyncTasks.id, timedOutTaskIds));
     }
   };
 }
+
+export const getAsyncTaskTimeoutMs = (type: AsyncTaskType | string | null | undefined) => {
+  if (type === AsyncTaskType.VideoGeneration) {
+    return VIDEO_GENERATION_ASYNC_TASK_TIMEOUT;
+  }
+
+  return ASYNC_TASK_TIMEOUT;
+};
 
 export const initUserMemoryExtractionMetadata = (
   metadata?: UserMemoryExtractionMetadata,

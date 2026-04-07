@@ -49,15 +49,22 @@ export type GenerationAsset = ImageGenerationAsset | VideoGenerationAsset;
 
 export interface GenerationConfig {
   aspectRatio?: string;
+  cameraFixed?: boolean;
   cfg?: number;
+  duration?: number;
   endImageUrl?: string | null;
+  generateAudio?: boolean;
   height?: number;
   imageUrl?: string | null;
   imageUrls?: string[];
+  mode?: 't2v' | 'i2v' | 'v2v';
   prompt: string;
   resolution?: string;
+  runtime?: 'online' | 'local';
+  seed?: number | null;
   size?: string;
   steps?: number;
+  videoUrl?: string | null;
   width?: number;
 }
 

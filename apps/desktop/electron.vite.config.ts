@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import path from 'node:path';
 
 import dotenv from 'dotenv';
 import { defineConfig } from 'electron-vite';
@@ -9,6 +9,7 @@ import {
   sharedOptimizeDeps,
   sharedRendererDefine,
   sharedRendererPlugins,
+  sharedRendererResolve,
   sharedRollupOutput,
 } from '../../plugins/vite/sharedRendererConfig';
 import { getExternalDependencies } from './native-deps.config.mjs';
@@ -34,7 +35,7 @@ function electronDesktopHtmlPlugin(): PluginOption {
 dotenv.config();
 
 const isDev = process.env.NODE_ENV === 'development';
-const ROOT_DIR = resolve(__dirname, '../..');
+const ROOT_DIR = path.resolve(__dirname, '../..');
 const mode = process.env.NODE_ENV === 'production' ? 'production' : 'development';
 
 Object.assign(process.env, loadEnv(mode, ROOT_DIR, ''));
@@ -74,8 +75,8 @@ export default defineConfig({
     },
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src/main'),
-        '~common': resolve(__dirname, 'src/common'),
+        '@': path.resolve(__dirname, 'src/main'),
+        '~common': path.resolve(__dirname, 'src/common'),
       },
     },
   },
@@ -108,8 +109,6 @@ export default defineConfig({
       electronDesktopHtmlPlugin(),
       ...(sharedRendererPlugins({ platform: 'desktop' }) as PluginOption[]),
     ],
-    resolve: {
-      dedupe: ['react', 'react-dom'],
-    },
+    resolve: sharedRendererResolve,
   },
 });

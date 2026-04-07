@@ -1,5 +1,8 @@
 // @vitest-environment node
-import { ASYNC_TASK_TIMEOUT } from '@lobechat/business-config/server';
+import {
+  ASYNC_TASK_TIMEOUT,
+  VIDEO_GENERATION_ASYNC_TASK_TIMEOUT,
+} from '@lobechat/business-config/server';
 import type { UserMemoryExtractionMetadata } from '@lobechat/types';
 import { AsyncTaskStatus, AsyncTaskType } from '@lobechat/types';
 import { eq } from 'drizzle-orm';
@@ -239,6 +242,52 @@ describe('AsyncTaskModel', () => {
         .insert(asyncTasks)
         .values({
           type: AsyncTaskType.Chunking,
+          status: AsyncTaskStatus.Processing,
+          userId,
+          createdAt: timeoutDate,
+        })
+        .returning()
+        .then((res) => res[0]);
+
+      await asyncTaskModel.checkTimeoutTasks([id]);
+
+      const updatedTask = await serverDB.query.asyncTasks.findFirst({
+        where: eq(asyncTasks.id, id),
+      });
+      expect(updatedTask?.status).toBe(AsyncTaskStatus.Error);
+      expect(updatedTask?.error).toBeDefined();
+    });
+
+    it('should not mark video generation tasks as error at the default timeout threshold', async () => {
+      const timeoutDate = new Date(Date.now() - ASYNC_TASK_TIMEOUT - 1000);
+
+      const { id } = await serverDB
+        .insert(asyncTasks)
+        .values({
+          type: AsyncTaskType.VideoGeneration,
+          status: AsyncTaskStatus.Processing,
+          userId,
+          createdAt: timeoutDate,
+        })
+        .returning()
+        .then((res) => res[0]);
+
+      await asyncTaskModel.checkTimeoutTasks([id]);
+
+      const updatedTask = await serverDB.query.asyncTasks.findFirst({
+        where: eq(asyncTasks.id, id),
+      });
+      expect(updatedTask?.status).toBe(AsyncTaskStatus.Processing);
+      expect(updatedTask?.error).toBeNull();
+    });
+
+    it('should mark video generation tasks as error after the video-specific timeout', async () => {
+      const timeoutDate = new Date(Date.now() - VIDEO_GENERATION_ASYNC_TASK_TIMEOUT - 1000);
+
+      const { id } = await serverDB
+        .insert(asyncTasks)
+        .values({
+          type: AsyncTaskType.VideoGeneration,
           status: AsyncTaskStatus.Processing,
           userId,
           createdAt: timeoutDate,

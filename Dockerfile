@@ -76,21 +76,27 @@ COPY patches ./patches
 # bring in desktop workspace manifest so pnpm can resolve it
 COPY apps/desktop/src/main/package.json ./apps/desktop/src/main/package.json
 
-RUN set -e && \
+RUN --mount=type=cache,id=lobehub-npm-cache,target=/root/.npm \
+    --mount=type=cache,id=lobehub-corepack-cache,target=/root/.cache/node/corepack \
+    --mount=type=cache,id=lobehub-pnpm-store,target=/pnpm/store \
+    set -e && export CI=true && \
     if [ "${USE_CN_MIRROR:-false}" = "true" ]; then \
         export SENTRYCLI_CDNURL="https://npmmirror.com/mirrors/sentry-cli"; \
-        npm config set registry "https://registry.npmmirror.com/"; \
+        export FFMPEG_BINARIES_URL="https://npmmirror.com/mirrors/ffmpeg-static"; \
         echo 'canvas_binary_host_mirror=https://npmmirror.com/mirrors/canvas' >> .npmrc; \
     fi && \
+    export COREPACK_HOME="/root/.cache/node/corepack" && \
     export COREPACK_NPM_REGISTRY=$(npm config get registry | sed 's/\/$//') && \
-    npm i -g corepack@latest && \
+    command -v corepack >/dev/null 2>&1 || npm i -g corepack@latest && \
     corepack enable && \
     corepack use $(sed -n 's/.*"packageManager": "\(.*\)".*/\1/p' package.json) && \
-    pnpm i && \
+    pnpm config set store-dir /pnpm/store && \
+    pnpm i --prefer-offline && \
     mkdir -p /deps && \
     cd /deps && \
+    pnpm config set store-dir /pnpm/store && \
     pnpm init && \
-    pnpm add pg drizzle-orm
+    pnpm add --prefer-offline pg drizzle-orm
 
 COPY . .
 

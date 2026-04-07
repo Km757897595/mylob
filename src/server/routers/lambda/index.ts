@@ -55,6 +55,7 @@ import { userRouter } from './user';
 import { userGroupRouter } from './userGroup';
 import { userMemoriesRouter } from './userMemories';
 import { userMemoryRouter } from './userMemory';
+import { userQuotaRouter } from './userQuota';
 import { videoRouter } from './video';
 
 export const lambdaRouter = router({
@@ -103,6 +104,7 @@ export const lambdaRouter = router({
   upload: uploadRouter,
   usage: usageRouter,
   user: userRouter,
+  userQuota: userQuotaRouter,
   userGroup: userGroupRouter,
   userMemories: userMemoriesRouter,
   userMemory: userMemoryRouter,

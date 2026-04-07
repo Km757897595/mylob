@@ -8,6 +8,7 @@ import { AsyncTaskModel } from '@/database/models/asyncTask';
 import { ChunkModel } from '@/database/models/chunk';
 import { DocumentModel } from '@/database/models/document';
 import { FileModel } from '@/database/models/file';
+import { UserQuotaModel } from '@/database/models/userQuota';
 import { KnowledgeRepo } from '@/database/repositories/knowledge';
 import { appEnv } from '@/envs/app';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
@@ -34,6 +35,7 @@ const fileProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
       fileModel: new FileModel(ctx.serverDB, ctx.userId),
       fileService: new FileService(ctx.serverDB, ctx.userId),
       knowledgeRepo: new KnowledgeRepo(ctx.serverDB, ctx.userId),
+      userQuotaModel: new UserQuotaModel(ctx.serverDB, ctx.userId),
     },
   });
 });
@@ -87,6 +89,8 @@ export const fileRouter = router({
       if (actualSize < 0) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'File size cannot be negative' });
       }
+
+      await ctx.userQuotaModel.assertFileUploadWithinQuota(actualSize);
 
       const { id } = await ctx.fileModel.create(
         {

@@ -40,22 +40,36 @@ const videoProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
   });
 });
 
-const createVideoInputSchema = z.object({
+const videoParamsSchema = z
+  .object({
+    aspectRatio: z.string().optional(),
+    cameraFixed: z.boolean().optional(),
+    duration: z.number().optional(),
+    endImageUrl: z.string().nullable().optional(),
+    generateAudio: z.boolean().optional(),
+    imageUrl: z.string().nullable().optional(),
+    mode: z.enum(['t2v', 'i2v', 'v2v']).default('t2v'),
+    prompt: z.string(),
+    resolution: z.string().optional(),
+    runtime: z.enum(['online', 'local']).default('online'),
+    seed: z.number().nullable().optional(),
+    videoUrl: z.string().nullable().optional(),
+  })
+  .passthrough()
+  .superRefine((params, ctx) => {
+    if (params.mode === 'v2v' && !params.videoUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'videoUrl is required when mode is v2v',
+        path: ['videoUrl'],
+      });
+    }
+  });
+
+export const createVideoInputSchema = z.object({
   generationTopicId: z.string(),
   model: z.string(),
-  params: z
-    .object({
-      aspectRatio: z.string().optional(),
-      cameraFixed: z.boolean().optional(),
-      duration: z.number().optional(),
-      endImageUrl: z.string().nullable().optional(),
-      generateAudio: z.boolean().optional(),
-      imageUrl: z.string().nullable().optional(),
-      prompt: z.string(),
-      resolution: z.string().optional(),
-      seed: z.number().nullable().optional(),
-    })
-    .passthrough(),
+  params: videoParamsSchema,
   provider: z.string(),
 });
 export type CreateVideoServicePayload = z.infer<typeof createVideoInputSchema>;
@@ -96,6 +110,19 @@ export const videoRouter = router({
       }
     }
 
+    // Process reference video videoUrl
+    if (typeof params.videoUrl === 'string' && params.videoUrl) {
+      try {
+        const key = await fileService.getKeyFromFullUrl(params.videoUrl);
+        if (key) {
+          log('Converted videoUrl to key: %s -> %s', params.videoUrl, key);
+          configForDatabase = { ...configForDatabase, videoUrl: key };
+        }
+      } catch (error) {
+        console.error('Error converting videoUrl to key: %O', error);
+      }
+    }
+
     // In development, convert localhost proxy URLs to S3 URLs for API access
     let generationParams = params;
     if (process.env.NODE_ENV === 'development') {
@@ -118,6 +145,14 @@ export const videoRouter = router({
             s3Url,
           );
           updates.endImageUrl = s3Url;
+        }
+      }
+
+      if (typeof params.videoUrl === 'string' && params.videoUrl) {
+        const s3Url = await fileService.getFullFileUrl(configForDatabase.videoUrl as string);
+        if (s3Url) {
+          log('Dev: converted videoUrl proxy URL to S3 URL: %s -> %s', params.videoUrl, s3Url);
+          updates.videoUrl = s3Url;
         }
       }
 

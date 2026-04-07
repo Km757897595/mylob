@@ -3,6 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { calculatorExecutor } from '../src/executor';
 
 describe('Unit Conversion', () => {
+  it('preserves the original parser error as the cause when math evaluation fails', () => {
+    expect.assertions(3);
+
+    try {
+      calculatorExecutor['evaluateMathExpression']('(');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect(error).toMatchObject({
+        cause: expect.any(Error),
+      });
+      expect((error as Error).message).toContain('Failed to evaluate expression');
+    }
+  });
+
   it('should handle temperature conversion with mathjs syntax', async () => {
     const result = await calculatorExecutor.calculate({ expression: '25 degC to degF' });
     expect(result.success).toBe(true);

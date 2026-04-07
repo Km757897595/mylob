@@ -195,3 +195,7 @@ export const sharedOptimizeDeps = {
     'motion/react',
   ],
 };
+
+export const sharedRendererResolve = {
+  dedupe: ['@lexical/utils', '@lobehub/editor', 'lexical', 'react', 'react-dom'],
+};

@@ -1,348 +1,485 @@
-# AI 多模态交互平台 — 部署指南
+# LobeHub 私有化部署指南
 
-本文档面向运维 / 管理员，指导如何在甲方服务器上完成平台的 Docker Compose 全栈部署，并配置在线 API 与离线模型双模式。
+本文档面向运维与管理员，介绍如何基于当前仓库代码构建你自己的 Docker 镜像，并在单台 Linux 服务器上使用 Docker Compose 部署完整的 LobeHub 服务栈。
 
----
+本文档覆盖以下环节：
 
-## 一、服务器要求
+- 源码构建
+- 镜像打包与发布
+- 服务器部署
+- 数据库初始化
+- 对象存储初始化
+- 首次业务初始化
+- 更新发布与回滚
+- 备份恢复
+- 常见问题与安全建议
 
-| 项目     | 最低配置                       | 推荐配置                              |
-| -------- | ------------------------------ | ------------------------------------- |
-| CPU      | 4 核                           | 8 核 +                                |
-| 内存     | 8 GB                           | 16 GB+（使用离线模型需 32 GB+）       |
-| 硬盘     | 50 GB SSD                      | 200 GB+ SSD（离线模型权重需额外空间） |
-| GPU      | 无（纯在线 API 模式）          | NVIDIA GPU 16GB+ VRAM（离线推理）     |
-| 操作系统 | Ubuntu 22.04 / CentOS 8+       | Ubuntu 22.04 LTS                      |
-| Docker   | Docker 24+ / Docker Compose V2 | 最新稳定版                            |
+## 1. 部署方案概览
 
----
+本文采用的部署方案如下：
 
-## 二、目录结构
+- 应用服务：使用当前仓库代码构建自定义 Docker 镜像
+- Web 服务：LobeHub
+- 数据库：PostgreSQL 17，推荐使用 ParadeDB 镜像
+- 缓存：Redis
+- 对象存储：RustFS，兼容 S3
+- 搜索：SearXNG
+- 反向代理：Nginx 或 Caddy
+
+这个方案的优势是：
+
+- 可以部署当前仓库中的定制代码，而不是官方公共镜像
+- 继续复用仓库已经存在的生产启动链路
+- 启动时自动执行数据库 migration
+- 自动初始化 RustFS bucket 和访问策略
+- 便于后续通过镜像 tag 做升级和回滚
+
+## 2. 核心初始化机制
+
+仓库中的生产部署链路已经内置了以下自动初始化逻辑：
+
+- 应用容器启动前会自动执行数据库 migration
+- `rustfs-init` 会自动创建 `lobe` bucket
+- `rustfs-init` 会自动设置 bucket 匿名读策略
+- 部分基础数据会在 migration 中自动初始化
+- RBAC 基础角色与权限数据已在 migration 中提供
+
+因此，首次部署时通常不需要手工建表，也不需要手工创建对象存储桶。
+
+## 3. 服务器要求
+
+### 最低配置
+
+| 项目           | 最低建议         |
+| -------------- | ---------------- |
+| CPU            | 4 核             |
+| 内存           | 8 GB             |
+| 磁盘           | 50 GB SSD        |
+| 操作系统       | Ubuntu 22.04 LTS |
+| Docker         | 24+              |
+| Docker Compose | V2               |
+
+### 推荐配置
+
+| 项目   | 推荐配置                         |
+| ------ | -------------------------------- |
+| CPU    | 8 核或以上                       |
+| 内存   | 16 GB 或以上                     |
+| 磁盘   | 100 GB 以上                      |
+| 数据盘 | 建议独立挂载数据库和对象存储数据 |
+
+## 4. 域名与端口规划
+
+推荐至少准备以下两个域名：
+
+- `lobe.example.com`：LobeHub Web 访问入口
+- `s3.example.com`：RustFS S3 API 公共访问入口
+
+可选域名：
+
+- `s3-ui.example.com`：RustFS 管理台
+
+默认端口如下：
+
+- `3210`：LobeHub
+- `9000`：RustFS S3 API
+- `9001`：RustFS 管理台
+- `5432`：PostgreSQL
+- `6379`：Redis
+
+生产环境建议：
+
+- 不要将 PostgreSQL 暴露到公网
+- 不要将 Redis 暴露到公网
+- RustFS 管理台只保留本机访问或受限访问
+- 外网通常只需要开放 `80/443`
+
+## 5. 本地或 CI 构建镜像
+
+推荐做法：
+
+- 不要在生产服务器上执行源码构建
+- 在本地开发机或 CI 先完成镜像构建
+- 将镜像推送到镜像仓库，或者导出后传到服务器
+- 服务器只负责 `docker pull` / `docker load` 和 `docker compose up -d`
+
+这样做的原因：
+
+- 当前仓库是 monorepo，依赖较多，服务器现场构建通常很慢
+- 国内网络下，Docker 构建阶段的依赖下载很容易变慢或波动
+- 镜像构建与服务部署解耦后，升级、回滚和多机部署都更稳定
+
+### 5.1 构建前提
+
+在本地开发机或 CI 环境准备：
+
+- 当前仓库源码
+- Docker Buildx
+- 可用的镜像仓库
+
+### 5.2 构建并推送镜像
+
+如果服务器是常见的 `linux/amd64`，推荐使用：
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  --build-arg USE_CN_MIRROR=true \
+  -t registry.example.com/yourname/mylob:2026-04-02 \
+  -t registry.example.com/yourname/mylob:latest \
+  --push \
+  .
+```
+
+说明：
+
+- `latest` 便于简单更新
+- 带日期或版本号的 tag 便于回滚
+- 如果你不在中国大陆，`--build-arg USE_CN_MIRROR=true` 可以去掉
+
+补充说明：
+
+- Dockerfile 中的缓存优化更偏向 “后续重复构建提速”
+- 第一次完整构建时，依然可能因为依赖下载而较慢
+- 如果你只是要尽快上线，优先选择 “本地或 CI 构建，再推送到服务器”
+
+### 5.3 没有镜像仓库时的替代方案
+
+如果你暂时没有私有镜像仓库，可以本地构建并导出：
+
+```bash
+docker build --build-arg USE_CN_MIRROR=true -t mylob:2026-04-02 .
+docker save mylob:2026-04-02 | gzip > mylob-2026-04-02.tar.gz
+```
+
+传到服务器后导入：
+
+```bash
+gunzip -c mylob-2026-04-02.tar.gz | docker load
+```
+
+## 6. 服务器部署目录
+
+在服务器创建部署目录：
+
+```bash
+sudo mkdir -p /opt/mylob
+sudo chown -R $USER:$USER /opt/mylob
+cd /opt/mylob
+```
+
+推荐目录结构：
 
 ```text
-/opt/lobehub/
-├── docker-compose.yml          # 主编排文件
-├── .env                        # 环境变量配置
-├── bucket.config.json          # S3 存储桶策略
-├── searxng-settings.yml        # 搜索引擎配置
-└── data/                       # PostgreSQL 数据持久化（自动创建）
+/opt/mylob
+├── docker-compose.yml
+├── .env
+├── bucket.config.json
+├── searxng-settings.yml
+└── data/
 ```
 
----
+从仓库复制以下文件：
 
-## 三、快速部署
+- `docker-compose/deploy/docker-compose.yml`
+- `docker-compose/deploy/bucket.config.json`
+- `docker-compose/deploy/searxng-settings.yml`
 
-### 3.1 复制部署文件
+说明：
 
-```bash
-mkdir -p /opt/lobehub && cd /opt/lobehub
+- 仓库里的 `docker-compose/deploy/docker-compose.yml` 已支持通过 `LOBE_IMAGE` 指定自定义镜像
+- 你可以直接复用它，也可以按本文示例自行裁剪
 
-# 从项目仓库复制部署文件
-cp docker-compose/deploy/docker-compose.yml .
-cp docker-compose/deploy/bucket.config.json .
-cp docker-compose/deploy/searxng-settings.yml .
+## 7. Docker Compose 配置
+
+创建 `/opt/mylob/docker-compose.yml`：
+
+```yaml
+name: mylob
+
+services:
+  lobe:
+    image: registry.example.com/yourname/mylob:latest
+    container_name: mylob
+    ports:
+      - '${LOBE_PORT}:3210'
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+      rustfs-init:
+        condition: service_completed_successfully
+    environment:
+      - 'KEY_VAULTS_SECRET=${KEY_VAULTS_SECRET}'
+      - 'AUTH_SECRET=${AUTH_SECRET}'
+      - 'DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgresql:5432/${LOBE_DB_NAME}'
+      - 'S3_ENDPOINT=${S3_ENDPOINT}'
+      - 'S3_BUCKET=${RUSTFS_LOBE_BUCKET}'
+      - 'S3_ENABLE_PATH_STYLE=1'
+      - 'S3_ACCESS_KEY=${RUSTFS_ACCESS_KEY}'
+      - 'S3_ACCESS_KEY_ID=${RUSTFS_ACCESS_KEY}'
+      - 'S3_SECRET_ACCESS_KEY=${RUSTFS_SECRET_KEY}'
+      - 'LLM_VISION_IMAGE_USE_BASE64=1'
+      - 'S3_SET_ACL=0'
+      - 'SEARXNG_URL=http://searxng:8080'
+      - 'REDIS_URL=redis://redis:6379'
+      - 'REDIS_PREFIX=lobechat'
+      - 'REDIS_TLS=0'
+    env_file:
+      - .env
+    restart: always
+    networks:
+      - lobe-network
+
+  postgresql:
+    image: paradedb/paradedb:latest-pg17
+    container_name: mylob-postgres
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - './data:/var/lib/postgresql/data'
+    environment:
+      - 'POSTGRES_DB=${LOBE_DB_NAME}'
+      - 'POSTGRES_PASSWORD=${POSTGRES_PASSWORD}'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - lobe-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: mylob-redis
+    command: redis-server --save 60 1000 --appendonly yes
+    volumes:
+      - 'redis_data:/data'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: always
+    networks:
+      - lobe-network
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: mylob-rustfs
+    ports:
+      - '${RUSTFS_PORT}:9000'
+      - '127.0.0.1:${RUSTFS_ADMIN_PORT}:9001'
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY}
+      - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY}
+    volumes:
+      - 'rustfs-data:/data'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:9000/health >/dev/null 2>&1 || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    command:
+      ['--access-key', '${RUSTFS_ACCESS_KEY}', '--secret-key', '${RUSTFS_SECRET_KEY}', '/data']
+    restart: always
+    networks:
+      - lobe-network
+
+  rustfs-init:
+    image: minio/mc:latest
+    container_name: mylob-rustfs-init
+    depends_on:
+      rustfs:
+        condition: service_healthy
+    volumes:
+      - ./bucket.config.json:/bucket.config.json:ro
+    entrypoint: /bin/sh
+    command: >-
+      -c '
+      set -eux;
+      mc alias set rustfs "http://rustfs:9000" "${RUSTFS_ACCESS_KEY}" "${RUSTFS_SECRET_KEY}";
+      mc mb "rustfs/lobe" --ignore-existing;
+      mc anonymous set-json "/bucket.config.json" "rustfs/lobe";
+      '
+    restart: 'no'
+    networks:
+      - lobe-network
+
+  searxng:
+    image: searxng/searxng
+    container_name: mylob-searxng
+    volumes:
+      - './searxng-settings.yml:/etc/searxng/settings.yml'
+    environment:
+      - 'SEARXNG_SETTINGS_FILE=/etc/searxng/settings.yml'
+    env_file:
+      - .env
+    restart: always
+    networks:
+      - lobe-network
+
+networks:
+  lobe-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
+  rustfs-data:
+    driver: local
 ```
 
-### 3.2 创建环境变量文件
+### 配置说明
 
-```bash
-cat > .env << 'EOF'
-# ============================================================
-#  基础配置
-# ============================================================
+- PostgreSQL 只绑定到 `127.0.0.1`
+  - 这样可以在服务器本机执行管理脚本
+  - 同时避免对公网暴露数据库
+- Redis 不对外暴露
+- RustFS API 对外暴露，供浏览器访问上传文件
+- RustFS 管理台只绑定本机，按需通过 SSH 隧道或反向代理访问
 
-# 应用端口
-LOBE_PORT=3210
+## 8. 环境变量配置
 
-# 加密密钥（必须修改！建议使用 openssl rand -base64 32 生成）
-KEY_VAULTS_SECRET=<替换为随机密钥>
-AUTH_SECRET=<替换为随机密钥>
-
-# 应用域名（如果使用反向代理，填写实际域名）
-APP_URL=http://your-server-ip:3210
-
-# ============================================================
-#  数据库配置
-# ============================================================
-LOBE_DB_NAME=lobechat
-POSTGRES_PASSWORD=<替换为安全密码>
-
-# ============================================================
-#  S3 对象存储（RustFS / MinIO 兼容）
-# ============================================================
-S3_ENDPOINT=http://localhost:9000
-RUSTFS_PORT=9000
-RUSTFS_ADMIN_PORT=9001
-RUSTFS_LOBE_BUCKET=lobe
-RUSTFS_ACCESS_KEY=YOUR_S3_ACCESS_KEY
-RUSTFS_SECRET_KEY=YOUR_S3_SECRET_KEY
-
-# ============================================================
-#  邮箱服务（用户注册邮箱验证）
-# ============================================================
-# 启用邮箱验证
-AUTH_EMAIL_VERIFICATION=1
-
-# SMTP 配置
-EMAIL_SERVICE_PROVIDER=smtp
-SMTP_HOST=smtp.your-domain.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=noreply@your-domain.com
-SMTP_PASS=<邮箱密码或授权码>
-SMTP_FROM=北测数字 AI <noreply@your-domain.com>
-
-# ============================================================
-#  在线 API 模型配置（按需启用）
-# ============================================================
-
-# --- 文生文 ---
-# DeepSeek
-DEEPSEEK_API_KEY=sk-xxxxxxxxxxxx
-
-# 通义千问（Qwen）
-QWEN_API_KEY=sk-xxxxxxxxxxxx
-
-# 智谱（Zhipu / ChatGLM）
-ZHIPU_API_KEY=xxxxxxxxxxxx
-
-# --- 文生图（在线）---
-# FAL.ai
-ENABLED_FAL=1
-FAL_API_KEY=key-xxxxxxxxxxxx
-
-# BFL (FLUX)
-BFL_API_KEY=xxxxxxxxxxxx
-
-# --- 文生视频（在线）---
-# 目前视频生成由平台内置路由处理，需在 UI 的「设置 > 模型服务」中配置
-# 豆包视频（火山引擎）
-# 在 UI「设置 > 模型服务」中添加并配置
-
-# --- 视觉理解 ---
-# 使用上述已配置的多模态模型（Qwen-VL, DeepSeek-V 等）即可
-
-# ============================================================
-#  离线模型配置（内网 / 本地推理）
-# ============================================================
-
-# Ollama — 文生文本地推理
-ENABLED_OLLAMA=1
-OLLAMA_PROXY_URL=http://host.docker.internal:11434
-# 指定可用的离线模型列表
-OLLAMA_MODEL_LIST=qwen2.5:14b,deepseek-r1:14b,llama3.3:latest
-
-# ComfyUI — 图像生成本地推理
-ENABLED_COMFYUI=1
-COMFYUI_BASE_URL=http://host.docker.internal:8000
-
-# ============================================================
-#  TTS 语音服务
-# ============================================================
-# 平台内置支持 OpenAI TTS / Edge TTS 等，在 UI「设置 > 模型服务」中配置
-# 离线 TTS 可使用 Edge TTS（无需 API Key）
-
-# ============================================================
-#  Feature Flags（功能开关）
-# ============================================================
-# 默认已开启: ai_image, speech_to_text, knowledge_base
-# 格式: +启用, -禁用。例如:
-# FEATURE_FLAGS=+market,-cloud_promotion
-FEATURE_FLAGS=+ai_image,+speech_to_text,+knowledge_base,-cloud_promotion,-check_updates
-
-# ============================================================
-#  搜索引擎（可选，用于联网搜索）
-# ============================================================
-# 已内置 SearXNG 容器，无需额外配置
-
-EOF
-```
-
-### 3.3 生成密钥
-
-```bash
-# 生成 KEY_VAULTS_SECRET
-echo "KEY_VAULTS_SECRET=$(openssl rand -base64 32)"
-
-# 生成 AUTH_SECRET
-echo "AUTH_SECRET=$(openssl rand -base64 32)"
-
-# 生成数据库密码
-echo "POSTGRES_PASSWORD=$(openssl rand -base64 16)"
-
-# 将生成的值替换到 .env 文件中
-```
-
-### 3.4 启动服务
-
-```bash
-cd /opt/lobehub
-
-# 拉取镜像并启动
-docker compose up -d
-
-# 查看日志
-docker compose logs -f lobe
-
-# 查看服务状态
-docker compose ps
-```
-
-### 3.5 验证部署
-
-```bash
-# 检查各服务健康状态
-docker compose ps
-
-# 预期输出（所有服务应为 healthy/running）：
-# lobehub         running (healthy)     0.0.0.0:3210->3210/tcp
-# lobe-postgres   running (healthy)     0.0.0.0:5432->5432/tcp
-# lobe-redis      running (healthy)     0.0.0.0:6379->6379/tcp
-# lobe-rustfs     running (healthy)     0.0.0.0:9000->9000/tcp
-# lobe-searxng    running
-```
-
-访问 `http://<服务器IP>:3210` 即可进入平台。
-
----
-
-## 四、离线模型部署
-
-### 4.1 Ollama — 离线文生文
-
-在**同一服务器**或**内网 GPU 服务器**上安装 Ollama：
-
-```bash
-# 安装 Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# 下载模型（根据 GPU 显存选择合适的模型大小）
-ollama pull qwen2.5:14b     # 通义千问 14B（推荐，中文能力强）
-ollama pull deepseek-r1:14b # DeepSeek R1 14B（推理能力强）
-ollama pull llama3.3:latest # Llama 3.3（通用英文模型）
-
-# 设置监听地址（允许 Docker 容器访问）
-# 编辑 /etc/systemd/system/ollama.service，添加：
-# Environment="OLLAMA_HOST=0.0.0.0"
-sudo systemctl daemon-reload
-sudo systemctl restart ollama
-
-# 验证
-curl http://localhost:11434/api/tags
-```
-
-**Docker 网络说明**：
-
-- 同机部署时，`.env` 中设置 `OLLAMA_PROXY_URL=http://host.docker.internal:11434`
-- 独立 GPU 服务器时，替换为该服务器内网 IP：`OLLAMA_PROXY_URL=http://192.168.x.x:11434`
-
-### 4.2 ComfyUI — 离线图像生成
-
-```bash
-# 方式一：Docker 部署 ComfyUI（推荐）
-docker run -d \
-  --name comfyui \
-  --gpus all \
-  -p 8000:8188 \
-  -v /opt/comfyui-models:/app/models \
-  ghcr.io/ai-dock/comfyui:latest
-
-# 方式二：手动安装
-git clone https://github.com/comfyanonymous/ComfyUI.git
-cd ComfyUI
-pip install -r requirements.txt
-python main.py --listen 0.0.0.0 --port 8000
-```
-
-**模型下载**：将 Stable Diffusion / FLUX 模型文件放入 `/opt/comfyui-models/checkpoints/` 目录。
-
-平台已内置以下 ComfyUI 工作流：
-
-- FLUX Schnell（快速文生图）
-- FLUX Dev（高质量文生图）
-- FLUX Kontext（图生图编辑）
-- SD 1.5 / SDXL / SD 3.5（经典 Stable Diffusion）
-- 自定义 SD 模型
-
-`.env` 配置：
+如果你直接复用仓库中的 `docker-compose/deploy/docker-compose.yml`，建议在 `/opt/mylob/.env` 中额外增加：
 
 ```env
-ENABLED_COMFYUI=1
-COMFYUI_BASE_URL=http://host.docker.internal:8000
+LOBE_IMAGE=registry.example.com/yourname/mylob:latest
 ```
 
-### 4.3 Vision 模型 — 图意理解
+如果你走的是离线导入镜像方案，也可以写成：
 
-通过 Ollama 部署视觉理解模型：
+```env
+LOBE_IMAGE=mylob:2026-04-02
+```
+
+创建 `/opt/mylob/.env`：
+
+```env
+# ===========================
+# 基础配置
+# ===========================
+LOBE_PORT=3210
+APP_URL=https://lobe.example.com
+INTERNAL_APP_URL=http://lobe:3210
+
+# ===========================
+# 密钥配置
+# 上线后不要随意修改
+# ===========================
+KEY_VAULTS_SECRET=REPLACE_WITH_OPENSSL_BASE64_32
+AUTH_SECRET=REPLACE_WITH_OPENSSL_BASE64_32
+JWKS_KEY={"keys":[REPLACE_WITH_REAL_JWKS_JSON]}
+
+# ===========================
+# PostgreSQL
+# ===========================
+LOBE_DB_NAME=lobechat
+POSTGRES_PASSWORD=REPLACE_WITH_STRONG_PASSWORD
+
+# ===========================
+# RustFS / S3
+# S3_ENDPOINT 必须是浏览器可访问地址
+# ===========================
+S3_ENDPOINT=https://s3.example.com
+RUSTFS_PORT=9000
+RUSTFS_ADMIN_PORT=9001
+RUSTFS_ACCESS_KEY=admin
+RUSTFS_SECRET_KEY=REPLACE_WITH_STRONG_PASSWORD
+RUSTFS_LOBE_BUCKET=lobe
+
+# ===========================
+# 登录控制，可选
+# ===========================
+# AUTH_ALLOWED_EMAILS=your-company.com,admin@example.com
+# AUTH_DISABLE_EMAIL_PASSWORD=1
+# AUTH_SSO_PROVIDERS=google,github
+
+# ===========================
+# 邮件服务，可选
+# ===========================
+# AUTH_EMAIL_VERIFICATION=1
+# EMAIL_SERVICE_PROVIDER=smtp
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=465
+# SMTP_SECURE=true
+# SMTP_USER=noreply@example.com
+# SMTP_PASS=REPLACE_ME
+# SMTP_FROM=noreply@example.com
+
+# ===========================
+# 至少配置一个模型服务商
+# ===========================
+OPENAI_API_KEY=sk-xxxx
+# DEEPSEEK_API_KEY=xxxx
+# GOOGLE_API_KEY=xxxx
+# QWEN_API_KEY=sk-xxxx
+
+# ===========================
+# 可选功能
+# ===========================
+FEATURE_FLAGS=+ai_image,+speech_to_text,+knowledge_base,-cloud_promotion,-check_updates
+```
+
+## 9. 生成密钥
+
+### 9.1 生成 `KEY_VAULTS_SECRET`
 
 ```bash
-ollama pull llama3.2-vision:11b # Llama 3.2 Vision
-ollama pull qwen2.5-vl:7b       # 通义千问 VL（推荐，中文识图强）
+openssl rand -base64 32
 ```
 
-在平台聊天页面选择 Vision 模型，上传图片即可进行图意理解。
-
----
-
-## 五、预置助手模板导入
-
-平台预置了 23 个 AI 助手模板，覆盖文本、图像、视频、语音、知识库等场景。
-
-### 方式一：使用 Seed 脚本（推荐）
+### 9.2 生成 `AUTH_SECRET`
 
 ```bash
-# 进入项目目录
-cd /path/to/lobehub
-
-# 执行导入（需要 DATABASE_URL 环境变量，userId 为管理员账号 ID）
-DATABASE_URL=postgresql://postgres:<密码>@localhost:5432/lobechat \
-  bunx tsx scripts/seed-agent-templates.ts <管理员userId>
-
-# 示例
-DATABASE_URL=postgresql://postgres:mypassword@localhost:5432/lobechat \
-  bunx tsx scripts/seed-agent-templates.ts user_abc123
+openssl rand -base64 32
 ```
 
-脚本支持幂等执行，重复运行会自动跳过已存在的助手。
+### 9.3 生成 `JWKS_KEY`
 
-### 方式二：手动导入
+在源码仓库目录执行：
 
-1. 登录管理员账号
-2. 进入「设置 > 系统工具 > 数据导入」
-3. 上传 `docs/agent-templates/agent-templates.json` 文件
+```bash
+node scripts/generate-oidc-jwk.mjs
+```
 
-### 助手列表
+将输出的单行 JSON 直接填入：
 
-| 类别        | 助手                                         |
-| ----------- | -------------------------------------------- |
-| 基础对话    | 通用智能助手                                 |
-| 文本生成    | 文案创作、学术写作、代码编程、翻译、数据分析 |
-| 图像生成    | 海报设计、产品概念图、插画创作               |
-| 图像编辑    | 图片风格转换                                 |
-| 视觉识别    | 图像理解分析                                 |
-| 视频生成    | 短视频创意、产品展示视频、课件动画           |
-| 语音交互    | 语音播报、会议纪要                           |
-| 知识检索    | 知识库问答、合同审查                         |
-| 教育 / 创意 | 教学辅导、创意头脑风暴                       |
-| 管理        | 项目规划                                     |
-| 综合设计    | 品牌视觉设计、多模态设计总监                 |
+```env
+JWKS_KEY=这里替换成完整 JSON
+```
 
----
+### 9.4 注意事项
 
-## 六、反向代理配置（Nginx）
+- `KEY_VAULTS_SECRET` 用于加密敏感数据
+- `AUTH_SECRET` 用于会话加密
+- `JWKS_KEY` 用于 JWT、OIDC 和内部服务认证
+- 这几个值上线后不要轻易修改
 
-生产环境建议使用 Nginx 反向代理 + HTTPS：
+## 10. 反向代理配置
+
+### 10.1 Nginx 示例
+
+LobeHub Web：
 
 ```nginx
 server {
+    listen 80;
+    server_name lobe.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
     listen 443 ssl http2;
-    server_name ai.your-domain.com;
+    server_name lobe.example.com;
 
-    ssl_certificate     /etc/ssl/certs/your-cert.pem;
-    ssl_certificate_key /etc/ssl/private/your-key.pem;
-
-    # 文件上传大小限制（知识库上传需要较大限制）
-    client_max_body_size 500m;
+    ssl_certificate /etc/letsencrypt/live/lobe.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/lobe.example.com/privkey.pem;
 
     location / {
         proxy_pass http://127.0.0.1:3210;
@@ -353,229 +490,391 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        # SSE 流式输出支持
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 3600s;
     }
+}
+```
 
-    # S3 存储访问（头像/文件上传）
-    location /s3/ {
-        proxy_pass http://127.0.0.1:9000/;
-        proxy_set_header Host $host;
-    }
+RustFS S3 API：
+
+```nginx
+server {
+    listen 80;
+    server_name s3.example.com;
+    return 301 https://$host$request_uri;
 }
 
 server {
-    listen 80;
-    server_name ai.your-domain.com;
-    return 301 https://$server_name$request_uri;
+    listen 443 ssl http2;
+    server_name s3.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/s3.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/s3.example.com/privkey.pem;
+
+    client_max_body_size 200m;
+
+    location / {
+        proxy_pass http://127.0.0.1:9000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
 }
 ```
 
-配置 HTTPS 后，更新 `.env`：
+### 10.2 Caddy 示例
 
-```env
-APP_URL=https://ai.your-domain.com
-S3_ENDPOINT=https://ai.your-domain.com/s3
-AUTH_TRUSTED_ORIGINS=https://ai.your-domain.com
+```caddyfile
+lobe.example.com {
+    reverse_proxy 127.0.0.1:3210
+}
+
+s3.example.com {
+    reverse_proxy 127.0.0.1:9000
+}
 ```
 
----
+## 11. 首次启动
 
-## 七、功能验证清单
-
-部署完成后，按以下清单逐项验证：
-
-| #   | 功能     | 验证步骤                                       |
-| --- | -------- | ---------------------------------------------- |
-| 1   | 注册登录 | 新用户注册 → 邮箱验证 → 登录成功               |
-| 2   | 文生文   | 聊天页选择模型 → 输入问题 → 获得流式回复       |
-| 3   | 文生图   | 进入「图像」页面 → 输入提示词 → 生成图片       |
-| 4   | 图生图   | 图像页面上传参考图 → 输入风格描述 → 生成新图   |
-| 5   | 图意理解 | 聊天页选 Vision 模型 → 上传图片 → 询问图片内容 |
-| 6   | 文生视频 | 进入「视频」页面 → 输入文本描述 → 生成视频     |
-| 7   | 图生视频 | 视频页面上传首帧图 → 输入描述 → 生成视频       |
-| 8   | TTS 语音 | 聊天页点击播放按钮 → 听到语音播报              |
-| 9   | STT 语音 | 聊天页点击麦克风 → 语音输入转文字              |
-| 10  | 知识库   | 「资源库」上传文档 → 创建知识库 → 问答验证     |
-| 11  | 预置助手 | 助手页面 → 查看 23 个预置助手 → 选择使用       |
-| 12  | 离线 LLM | 断网 → 选 Ollama 模型 → 正常对话               |
-| 13  | 离线图像 | 断网 → 选 ComfyUI → 正常生成图片               |
-
----
-
-## 八、运维管理
-
-### 8.1 数据备份
+在服务器执行：
 
 ```bash
-# 数据库备份
-docker exec lobe-postgres pg_dump -U postgres lobechat > backup_$(date +%Y%m%d).sql
-
-# 文件存储备份
-docker run --rm -v lobehub_rustfs-data:/data -v /opt/backup:/backup \
-  busybox tar czf /backup/rustfs_$(date +%Y%m%d).tar.gz /data
-
-# 自动备份 crontab 示例（每天凌晨 2 点）
-# 0 2 * * * /opt/lobehub/backup.sh
-```
-
-### 8.2 升级
-
-```bash
-cd /opt/lobehub
-
-# 拉取新镜像
+cd /opt/mylob
 docker compose pull
-
-# 重启服务（数据库 migration 自动执行）
 docker compose up -d
-
-# 查看升级日志
-docker compose logs -f lobe
+docker compose ps
+docker logs -f mylob
 ```
 
-### 8.3 常见问题
+### 成功标志
 
-| 问题             | 解决方案                                                        |
-| ---------------- | --------------------------------------------------------------- |
-| 数据库连接失败   | 检查 `POSTGRES_PASSWORD` 是否一致，检查 PostgreSQL 容器健康状态 |
-| S3 上传失败      | 检查 `S3_ENDPOINT` 是否可从浏览器访问，检查 bucket.config.json  |
-| Ollama 连接失败  | 确认 `OLLAMA_HOST=0.0.0.0`，Docker 使用 `host.docker.internal`  |
-| ComfyUI 连接失败 | 确认 ComfyUI 监听 `0.0.0.0`，检查端口映射                       |
-| 邮箱验证码收不到 | 检查 SMTP 配置，确认邮箱授权码正确                              |
-| 模型列表为空     | 在「设置 > 模型服务」中启用对应的模型提供者                     |
-
----
-
-## 九、安全建议
-
-1. **修改默认密码**：首次部署后立即修改所有默认密码（数据库、S3、管理员账号）
-2. **限制端口暴露**：生产环境仅暴露 443 端口（通过 Nginx 反向代理），关闭数据库和 Redis 的外部端口
-3. **HTTPS 强制**：通过 Nginx 配置强制 HTTPS 跳转
-4. **防火墙规则**：仅允许必要端口（443、22），内网通信使用 Docker 内部网络
-5. **定期备份**：每日自动备份数据库和文件存储
-6. **日志审计**：`docker compose logs` 定期检查异常访问
-
----
-
-## 十、环境变量速查表
-
-### 必填项
-
-| 变量                | 说明         | 示例                      |
-| ------------------- | ------------ | ------------------------- |
-| `KEY_VAULTS_SECRET` | 密钥加密密钥 | `openssl rand -base64 32` |
-| `AUTH_SECRET`       | 认证密钥     | `openssl rand -base64 32` |
-| `POSTGRES_PASSWORD` | 数据库密码   | 安全随机密码              |
-| `RUSTFS_ACCESS_KEY` | S3 访问密钥  | 自定义字符串              |
-| `RUSTFS_SECRET_KEY` | S3 密钥      | 自定义字符串              |
-
-### 模型配置
-
-| 变量                | 说明             | 适用场景              |
-| ------------------- | ---------------- | --------------------- |
-| `DEEPSEEK_API_KEY`  | DeepSeek API Key | 在线文生文            |
-| `QWEN_API_KEY`      | 通义千问 API Key | 在线文生文 + 视觉理解 |
-| `ENABLED_OLLAMA=1`  | 启用 Ollama      | 离线文生文            |
-| `OLLAMA_PROXY_URL`  | Ollama 服务地址  | 离线文生文            |
-| `ENABLED_COMFYUI=1` | 启用 ComfyUI     | 离线图像生成          |
-| `COMFYUI_BASE_URL`  | ComfyUI 服务地址 | 离线图像生成          |
-| `ENABLED_FAL=1`     | 启用 FAL.ai      | 在线图像生成          |
-| `FAL_API_KEY`       | FAL.ai API Key   | 在线图像生成          |
-| `BFL_API_KEY`       | BFL API Key      | 在线 FLUX 图像        |
-
-### 功能开关
-
-| Flag              | 默认值  | 说明                     |
-| ----------------- | ------- | ------------------------ |
-| `ai_image`        | `true`  | 图像生成功能             |
-| `speech_to_text`  | `true`  | 语音转文字               |
-| `knowledge_base`  | `true`  | 知识库功能               |
-| `market`          | `false` | 助手市场                 |
-| `check_updates`   | `true`  | 检查更新（内网建议关闭） |
-| `cloud_promotion` | `false` | 云端推广（建议关闭）     |
-| `rbac_management` | `false` | 企业角色与权限管理       |
-| `user_groups`     | `false` | 用户分组管理             |
-
----
-
-## 八、企业管理功能初始化
-
-启用 `rbac_management` 和 `user_groups` 后，需完成以下初始化步骤。
-
-### 8.1 运行数据库迁移
-
-企业管理功能依赖额外的数据表，首次部署需执行迁移：
-
-```bash
-bunx drizzle-kit migrate
-```
-
-迁移将创建以下表：`rbac_roles`、`rbac_permissions`、`rbac_role_permissions`、`rbac_user_roles`、`user_groups`、`user_group_members`、`user_hierarchy`、`topic_group_shares`、`topic_locks`、`user_quotas`。
-
-迁移完成后，单独运行种子数据脚本补充预定义角色和权限：
-
-**Linux / macOS**：
-
-```bash
-DATABASE_URL=postgresql://... bunx tsx scripts/seed-rbac-data.ts
-```
-
-**Windows PowerShell**：
-
-```powershell
-$env:DATABASE_URL="postgresql://..."; bunx tsx scripts/seed-rbac-data.ts
-```
-
-> 若迁移时已自动写入种子数据（可用 `SELECT count(*) FROM rbac_roles;` 验证，结果为 3），则跳过此步骤。该脚本幂等，重复执行安全。
-
-### 8.2 指定超级管理员
-
-迁移完成后，使用初始化脚本为指定用户赋予 `admin` 角色：
-
-**Linux / macOS**：
-
-```bash
-DATABASE_URL=postgresql://... bunx tsx scripts/init-super-admin.ts <userId>
-```
-
-**Windows PowerShell**：
-
-```powershell
-$env:DATABASE_URL="postgresql://..."; bunx tsx scripts/init-super-admin.ts <userId>
-```
-
-**示例（Linux）**：
-
-```bash
-DATABASE_URL=postgresql://postgres:password@localhost:5432/lobechat \
-  bunx tsx scripts/init-super-admin.ts user_123abc
-```
-
-**示例（PowerShell）**：
-
-```powershell
-$env:DATABASE_URL="postgresql://postgres:password@localhost:5432/lobechat"; bunx tsx scripts/init-super-admin.ts user_123abc
-```
-
-脚本幂等，可重复执行。
-
-**预期输出**：
+日志中出现以下内容，表示数据库初始化已经自动完成：
 
 ```text
-✓ 已成功为用户 user_123abc 赋予 admin 角色（超级管理员）
-✅ 初始化完成！
+[Database] Start to migration...
+✅ database migration pass.
 ```
 
-> **说明**：超级管理员（`admin` 角色）在 Settings → Enterprise 中可为其他用户分配 `manager` 或 `user` 角色，普通用户默认不可见 Enterprise 菜单。
+看到 Next.js 服务启动完成后，即可访问应用。
 
-### 8.3 预定义角色与权限
+## 12. 首次登录与业务初始化
 
-| 角色      | 说明       | 权限                                                                                                   |
-| --------- | ---------- | ------------------------------------------------------------------------------------------------------ |
-| `admin`   | 超级管理员 | 所有权限（7 个）                                                                                       |
-| `manager` | 部门管理员 | `chat:create`、`image:generate`、`video:generate`、`kb:manage`、`topic:view_subordinate`、`topic:lock` |
-| `user`    | 普通用户   | `chat:create`、`image:generate`、`video:generate`、`kb:manage`                                         |
+### 12.1 注册第一个用户
+
+部署完成后，访问：
+
+- `https://lobe.example.com`
+
+完成第一个账号注册或登录。
+
+### 12.2 获取用户 ID
+
+如果需要给某个账号赋予超级管理员权限，需要先获得该账号的 `userId`。
+
+常见方式：
+
+- 在数据库中查询
+- 通过现有调试或管理手段获取
+- 从日志或开发辅助工具中获取
+
+## 13. 超级管理员初始化
+
+### 13.1 是否必须在服务器上保留源码仓库
+
+不是必须。
+
+执行 `scripts/init-super-admin.ts` 和 `scripts/seed-agent-templates.ts` 的前提只有两个：
+
+- 你有一份能运行脚本的源码环境
+- 这个环境能访问 PostgreSQL
+
+因此有两种推荐方式：
+
+- 方式 A：服务器临时 clone 一份源码并执行
+- 方式 B：本地源码仓库 + SSH 隧道执行
+
+### 13.2 方式 A：服务器临时执行
+
+在服务器准备一个临时源码目录：
+
+```bash
+git clone < 你的仓库地址 > /opt/mylob-src
+cd /opt/mylob-src
+corepack enable
+corepack use pnpm@10.20.0
+pnpm install
+```
+
+然后执行：
+
+```bash
+DATABASE_URL=postgresql://postgres:你的密码@127.0.0.1:5432/lobechat bunx tsx scripts/init-super-admin.ts <userId>
+```
+
+### 13.3 方式 B：本地源码仓库 + SSH 隧道
+
+先建立 SSH 隧道：
+
+```bash
+ssh -L 5432:127.0.0.1:5432 user@your-server
+```
+
+然后在你本地的源码仓库目录执行：
+
+```bash
+DATABASE_URL=postgresql://postgres:你的密码@127.0.0.1:5432/lobechat bunx tsx scripts/init-super-admin.ts <userId>
+```
+
+### 13.4 说明
+
+这一步不要求 PostgreSQL 对公网开放。只要服务器本机可访问数据库即可。
+
+## 14. 预置助手模板初始化
+
+如果需要给指定用户导入预置助手模板，可以执行：
+
+### 14.1 服务器本机执行
+
+```bash
+DATABASE_URL=postgresql://postgres:你的密码@127.0.0.1:5432/lobechat bunx tsx scripts/seed-agent-templates.ts <userId>
+```
+
+### 14.2 本地 + SSH 隧道执行
+
+```bash
+DATABASE_URL=postgresql://postgres:你的密码@127.0.0.1:5432/lobechat bunx tsx scripts/seed-agent-templates.ts <userId>
+```
+
+## 15. 更新发布流程
+
+以后每次发布新版本，推荐按以下流程执行。
+
+### 15.1 本地或 CI 构建新镜像
+
+```bash
+docker buildx build \
+  --platform linux/amd64 \
+  -t registry.example.com/yourname/mylob:2026-04-03 \
+  -t registry.example.com/yourname/mylob:latest \
+  --push \
+  .
+```
+
+### 15.2 服务器拉取并更新
+
+```bash
+cd /opt/mylob
+docker compose pull
+docker compose up -d
+docker compose ps
+docker logs -f mylob
+```
+
+### 15.3 更新时自动完成的动作
+
+- 拉取新镜像
+- 重建应用容器
+- 应用启动前自动执行数据库 migration
+
+## 16. 回滚流程
+
+如果新版本异常，可以通过固定 tag 回滚。
+
+### 16.1 修改 `docker-compose.yml`
+
+将：
+
+```yaml
+image: registry.example.com/yourname/mylob:latest
+```
+
+改为：
+
+```yaml
+image: registry.example.com/yourname/mylob:2026-04-02
+```
+
+### 16.2 重启服务
+
+```bash
+cd /opt/mylob
+docker compose pull
+docker compose up -d
+```
+
+## 17. 备份与恢复
+
+### 17.1 PostgreSQL 备份
+
+```bash
+cd /opt/mylob
+docker compose exec postgresql pg_dump -U postgres lobechat > backup.sql
+```
+
+### 17.2 PostgreSQL 恢复
+
+```bash
+cd /opt/mylob
+docker compose exec -T postgresql psql -U postgres lobechat < backup.sql
+```
+
+### 17.3 RustFS 数据备份
+
+```bash
+cd /opt/mylob
+docker compose exec rustfs tar czf /tmp/rustfs-backup.tar.gz /data
+docker cp mylob-rustfs:/tmp/rustfs-backup.tar.gz ./rustfs-backup.tar.gz
+```
+
+### 17.4 Redis 数据持久化
+
+Redis 主要用于缓存和辅助状态，一般不作为核心恢复依据。如需手动保存：
+
+```bash
+cd /opt/mylob
+docker compose exec redis redis-cli BGSAVE
+```
+
+## 18. 运维常用命令
+
+### 查看状态
+
+```bash
+cd /opt/mylob
+docker compose ps
+```
+
+### 查看所有日志
+
+```bash
+docker compose logs -f
+```
+
+### 查看应用日志
+
+```bash
+docker logs -f mylob
+```
+
+### 查看数据库日志
+
+```bash
+docker compose logs -f postgresql
+```
+
+### 查看 RustFS 初始化日志
+
+```bash
+docker compose logs rustfs-init
+```
+
+### 重启所有服务
+
+```bash
+docker compose restart
+```
+
+### 仅重启应用
+
+```bash
+docker compose restart lobe
+```
+
+### 停止服务
+
+```bash
+docker compose stop
+```
+
+### 停止并删除容器
+
+```bash
+docker compose down
+```
+
+## 19. 常见问题
+
+### Q1：应用启动了，但无法对话
+
+通常是因为没有配置任何模型服务商 API Key。
+
+检查 `.env` 是否至少配置了一个：
+
+- `OPENAI_API_KEY`
+- `DEEPSEEK_API_KEY`
+- `GOOGLE_API_KEY`
+- `QWEN_API_KEY`
+
+### Q2：图片上传失败
+
+优先检查：
+
+- `S3_ENDPOINT` 是否为浏览器可访问地址
+- 是否错误写成了容器内地址，例如 `http://rustfs:9000`
+- `s3.example.com` 的反向代理和 HTTPS 是否正常
+
+### Q3：数据库 migration 失败
+
+查看应用日志：
+
+```bash
+docker logs -f mylob
+```
+
+重点检查：
+
+- `DATABASE_URL` 是否正确
+- PostgreSQL 是否健康
+- 是否使用 PostgreSQL 17
+- 是否使用 `paradedb/paradedb:latest-pg17`
+
+### Q4：是否必须开放 PostgreSQL 外部端口
+
+不是。
+
+推荐做法：
+
+- 只绑定 `127.0.0.1:5432:5432`
+- 不开放公网
+- 执行管理员初始化时，走服务器本机或 SSH 隧道
+
+### Q5：执行初始化脚本时服务器上必须有源码仓库吗
+
+不是。
+
+只要满足以下条件即可：
+
+- 你有源码仓库环境
+- 这个环境可以访问数据库
+
+你可以选择：
+
+- 在服务器临时 clone 一份源码执行
+- 在本地源码仓库里通过 SSH 隧道执行
+
+## 20. 生产安全建议
+
+- 不要将 PostgreSQL 和 Redis 暴露到公网
+- `KEY_VAULTS_SECRET`、`AUTH_SECRET`、`JWKS_KEY` 一定要妥善保存
+- 给 LobeHub 和 S3 都配置 HTTPS
+- 限制 RustFS 管理台访问来源
+- 定期备份数据库和对象存储
+- 发布镜像时使用固定 tag，避免只依赖 `latest`
+- 更新前先做一次数据库备份
+
+## 21. 上线检查清单
+
+- [ ] 镜像已成功构建并推送
+- [ ] `.env` 已配置 `APP_URL`
+- [ ] `.env` 已配置 `KEY_VAULTS_SECRET`
+- [ ] `.env` 已配置 `AUTH_SECRET`
+- [ ] `.env` 已配置 `JWKS_KEY`
+- [ ] `.env` 已配置至少一个模型 API Key
+- [ ] `S3_ENDPOINT` 为外部可访问 HTTPS 地址
+- [ ] PostgreSQL 未暴露公网
+- [ ] Redis 未暴露公网
+- [ ] 反向代理已配置
+- [ ] 证书已生效
+- [ ] 首次启动日志出现 `database migration pass`
+- [ ] 已完成首个管理员初始化
+- [ ] 已完成备份演练

@@ -12,6 +12,7 @@ import { DocumentModel } from '@/database/models/document';
 import { EmbeddingModel } from '@/database/models/embedding';
 import { FileModel } from '@/database/models/file';
 import { MessageModel } from '@/database/models/message';
+import { UserQuotaModel } from '@/database/models/userQuota';
 import { knowledgeBaseFiles } from '@/database/schemas';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { keyVaults, serverDatabase } from '@/libs/trpc/lambda/middleware';
@@ -36,6 +37,7 @@ const chunkProcedure = authedProcedure
         embeddingModel: new EmbeddingModel(ctx.serverDB, ctx.userId),
         fileModel: new FileModel(ctx.serverDB, ctx.userId),
         messageModel: new MessageModel(ctx.serverDB, ctx.userId),
+        userQuotaModel: new UserQuotaModel(ctx.serverDB, ctx.userId),
       },
     });
   });
@@ -92,6 +94,9 @@ export const chunkRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const chunkCount = await ctx.chunkModel.countByFileId(input.id);
+      await ctx.userQuotaModel.assertVectorCreationWithinQuota(chunkCount);
+
       const asyncTaskId = await ctx.chunkService.asyncEmbeddingFileChunks(input.id);
 
       return { id: asyncTaskId, success: true };

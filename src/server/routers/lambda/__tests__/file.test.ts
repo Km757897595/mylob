@@ -44,6 +44,10 @@ function createCallerWithCtx(partialCtx: any = {}) {
     query: vi.fn().mockResolvedValue([]),
   };
 
+  const userQuotaModel = {
+    assertFileUploadWithinQuota: mockAssertFileUploadWithinQuota,
+  };
+
   const documentModel = {};
 
   const ctx = {
@@ -55,6 +59,7 @@ function createCallerWithCtx(partialCtx: any = {}) {
     fileModel,
     fileService,
     knowledgeRepo,
+    userQuotaModel,
     ...partialCtx,
   };
 
@@ -101,6 +106,7 @@ const mockFileModelDeleteMany = vi.fn();
 const mockFileModelFindById = vi.fn();
 const mockFileModelQuery = vi.fn();
 const mockFileModelClear = vi.fn();
+const mockAssertFileUploadWithinQuota = vi.fn();
 
 vi.mock('@/database/models/file', () => ({
   FileModel: vi.fn(() => ({
@@ -111,6 +117,12 @@ vi.mock('@/database/models/file', () => ({
     findById: mockFileModelFindById,
     query: mockFileModelQuery,
     clear: mockFileModelClear,
+  })),
+}));
+
+vi.mock('@/database/models/userQuota', () => ({
+  UserQuotaModel: vi.fn(() => ({
+    assertFileUploadWithinQuota: mockAssertFileUploadWithinQuota,
   })),
 }));
 
@@ -168,6 +180,7 @@ describe('fileRouter', () => {
       contentLength: 100,
       contentType: 'text/plain',
     });
+    mockAssertFileUploadWithinQuota.mockResolvedValue(undefined);
 
     // Use actual context with default mocks
     ({ ctx, caller } = createCallerWithCtx());
@@ -271,6 +284,26 @@ describe('fileRouter', () => {
         }),
         true,
       );
+    });
+
+    it('should block upload when the user file quota would be exceeded', async () => {
+      ctx.userQuotaModel.assertFileUploadWithinQuota.mockRejectedValue(
+        new TRPCError({ code: 'FORBIDDEN', message: 'FILE_STORAGE_QUOTA_EXCEEDED' }),
+      );
+
+      await expect(
+        caller.createFile({
+          hash: 'test-hash',
+          fileType: 'text',
+          name: 'test.txt',
+          size: 100,
+          url: 'files/test.txt',
+          metadata: {},
+        }),
+      ).rejects.toThrow('FILE_STORAGE_QUOTA_EXCEEDED');
+
+      expect(ctx.fileModel.create).not.toHaveBeenCalled();
+      expect(ctx.userQuotaModel.assertFileUploadWithinQuota).toHaveBeenCalledWith(100);
     });
 
     it('should throw error when getFileMetadata fails and input size is negative', async () => {

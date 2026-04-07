@@ -155,11 +155,15 @@
     ]
   },
   "overrides": {
+    "@lexical/extension": "0.39.0",
+    "@lexical/utils": "0.39.0",
+    "@lobehub/editor": "4.5.0",
     "@types/react": "19.2.13",
     "better-auth": "1.4.6",
     "better-call": "1.1.8",
     "drizzle-orm": "^0.45.1",
     "fast-xml-parser": "5.4.2",
+    "lexical": "0.39.0",
     "pdfjs-dist": "5.4.530",
     "stylelint-config-clean-order": "7.0.0"
   },
@@ -195,7 +199,7 @@
     "@icons-pack/react-simple-icons": "^13.8.0",
     "@khmyznikov/pwa-install": "0.3.9",
     "@langchain/community": "^0.3.59",
-    "@lexical/utils": "^0.39.0",
+    "@lexical/utils": "0.39.0",
     "@lobechat/adapter-lark": "workspace:*",
     "@lobechat/adapter-qq": "workspace:*",
     "@lobechat/agent-runtime": "workspace:*",
@@ -252,7 +256,7 @@
     "@lobehub/chat-plugin-sdk": "^1.32.4",
     "@lobehub/chat-plugins-gateway": "^1.9.0",
     "@lobehub/desktop-ipc-typings": "workspace:*",
-    "@lobehub/editor": "^4.0.0",
+    "@lobehub/editor": "4.5.0",
     "@lobehub/icons": "^5.0.0",
     "@lobehub/market-sdk": "^0.31.3",
     "@lobehub/tts": "^5.1.2",
@@ -329,7 +333,7 @@
     "langchain": "^0.3.37",
     "langfuse": "^3.38.6",
     "langfuse-core": "^3.38.6",
-    "lexical": "^0.39.0",
+    "lexical": "0.39.0",
     "lucide-react": "^0.562.0",
     "mammoth": "^1.11.0",
     "marked": "^17.0.1",
@@ -521,11 +525,15 @@
       "ffmpeg-static"
     ],
     "overrides": {
+      "@lexical/extension": "0.39.0",
+      "@lexical/utils": "0.39.0",
+      "@lobehub/editor": "4.5.0",
       "@types/react": "19.2.13",
       "better-auth": "1.4.6",
       "better-call": "1.1.8",
       "drizzle-orm": "^0.45.1",
       "fast-xml-parser": "5.4.2",
+      "lexical": "0.39.0",
       "pdfjs-dist": "5.4.530",
       "stylelint-config-clean-order": "7.0.0"
     }

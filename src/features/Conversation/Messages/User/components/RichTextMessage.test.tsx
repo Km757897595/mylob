@@ -34,6 +34,34 @@ const mentionEditorState = {
   },
 };
 
+const actionTagEditorState = {
+  root: {
+    children: [
+      {
+        children: [
+          {
+            actionCategory: 'skill',
+            actionLabel: 'Search',
+            actionType: 'grep',
+            type: 'action-tag',
+            version: 1,
+          },
+        ],
+        direction: null,
+        format: '',
+        indent: 0,
+        type: 'paragraph',
+        version: 1,
+      },
+    ],
+    direction: null,
+    format: '',
+    indent: 0,
+    type: 'root',
+    version: 1,
+  },
+};
+
 afterEach(() => {
   cleanup();
 });
@@ -47,6 +75,16 @@ describe('RichTextMessage', () => {
     });
 
     expect(container.querySelector('.editor_mention')?.textContent).toBe('@Agent A');
+  });
+
+  it('should render action tag nodes from editor state', async () => {
+    const { container } = render(<RichTextMessage editorState={actionTagEditorState} />);
+
+    await act(async () => {
+      await moment();
+    });
+
+    expect(container.textContent).toContain('Search');
   });
 
   it('should render nothing for empty editor state', () => {

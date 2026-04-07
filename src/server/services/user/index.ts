@@ -7,6 +7,8 @@ import { initializeServerAnalytics } from '@/libs/analytics';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { FileS3 } from '@/server/modules/S3';
 
+import { seedDefaultAgentTemplates } from './defaultAgentTemplates';
+
 type CreatedUser = {
   createdAt?: Date | null;
   email?: string | null;
@@ -32,6 +34,13 @@ export class UserService {
         console.error(error);
         console.error('Failed to init new user for business');
       }
+    }
+
+    try {
+      await seedDefaultAgentTemplates(this.db, user.id);
+    } catch (error) {
+      console.error(error);
+      console.error('Failed to seed default agent templates');
     }
 
     const analytics = await initializeServerAnalytics();
