@@ -771,6 +771,15 @@ export class TopicModel {
 
   // ---- 用户组话题查询 ----
 
+  getUserGroupIdByTopicId = async (topicId: string): Promise<string | null> => {
+    const topic = await this.db.query.topics.findFirst({
+      columns: { userGroupId: true },
+      where: eq(topics.id, topicId),
+    });
+
+    return topic?.userGroupId ?? null;
+  };
+
   /**
    * 查询某个用户组的所有话题（含锁定状态和创建者信息）
    * 组内所有成员可调用，不限制 userId

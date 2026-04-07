@@ -7,6 +7,7 @@ import {
   userGroupMembers,
   userGroups,
 } from '../schemas/userGroup';
+import { userGroupManagers } from '../schemas/userGroupManager';
 import type { LobeChatDatabase } from '../type';
 import { idGenerator } from '../utils/idGenerator';
 
@@ -63,6 +64,16 @@ export class UserGroupModel {
       .where(and(eq(userGroupMembers.groupId, groupId), eq(userGroupMembers.userId, userId)));
   };
 
+  addManager = async (groupId: string, userId: string) => {
+    return this.db.insert(userGroupManagers).values({ groupId, userId }).onConflictDoNothing();
+  };
+
+  removeManager = async (groupId: string, userId: string) => {
+    return this.db
+      .delete(userGroupManagers)
+      .where(and(eq(userGroupManagers.groupId, groupId), eq(userGroupManagers.userId, userId)));
+  };
+
   getGroupMembers = async (groupId: string) => {
     return this.db.select().from(userGroupMembers).where(eq(userGroupMembers.groupId, groupId));
   };
@@ -82,6 +93,21 @@ export class UserGroupModel {
       .from(userGroupMembers)
       .innerJoin(users, eq(userGroupMembers.userId, users.id))
       .where(eq(userGroupMembers.groupId, groupId));
+  };
+
+  getGroupManagersWithDetails = async (groupId: string) => {
+    return this.db
+      .select({
+        avatar: users.avatar,
+        email: users.email,
+        fullName: users.fullName,
+        groupId: userGroupManagers.groupId,
+        userId: userGroupManagers.userId,
+        username: users.username,
+      })
+      .from(userGroupManagers)
+      .innerJoin(users, eq(userGroupManagers.userId, users.id))
+      .where(eq(userGroupManagers.groupId, groupId));
   };
 
   getUserGroups = async (userId?: string) => {

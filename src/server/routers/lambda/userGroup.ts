@@ -1,10 +1,10 @@
-import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 
 import { TopicModel } from '@/database/models/topic';
 import { UserGroupModel } from '@/database/models/userGroup';
 import { authedProcedure, rbacProcedure, router } from '@/libs/trpc/lambda';
 import { serverDatabase } from '@/libs/trpc/lambda/middleware';
+import { UserGroupAccessService } from '@/server/services/userGroupAccess';
 
 // ============ 管理类 Procedure（需要 user:manage 权限，Settings 中使用） ============
 
@@ -21,20 +21,13 @@ const groupManageProcedure = rbacProcedure('user:manage')
 
 // ============ 使用类 Procedure（只需登录 + 组成员校验，主界面使用） ============
 
-const groupMemberProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
-  const { ctx, input } = opts;
-  const groupId = (input as any)?.groupId || (input as any)?.userGroupId;
-
-  if (groupId) {
-    const userGroupModel = new UserGroupModel(ctx.serverDB, ctx.userId);
-    const isMember = await userGroupModel.isMember(groupId);
-    if (!isMember) {
-      throw new TRPCError({ code: 'FORBIDDEN', message: '非组成员，无法访问该用户组' });
-    }
-  }
+const groupAccessProcedure = authedProcedure.use(serverDatabase).use(async (opts) => {
+  const { ctx } = opts;
+  const accessService = new UserGroupAccessService(ctx.serverDB, ctx.userId);
 
   return opts.next({
     ctx: {
+      accessService,
       topicModel: new TopicModel(ctx.serverDB, ctx.userId),
       userGroupModel: new UserGroupModel(ctx.serverDB, ctx.userId),
     },
@@ -74,12 +67,26 @@ export const userGroupRouter = router({
     .input(z.object({ groupId: z.string() }))
     .query(async ({ input, ctx }) => ctx.userGroupModel.getGroupMembersWithDetails(input.groupId)),
 
+  getGroupManagers: groupManageProcedure
+    .input(z.object({ groupId: z.string() }))
+    .query(async ({ input, ctx }) => ctx.userGroupModel.getGroupManagersWithDetails(input.groupId)),
+
   getGroups: groupManageProcedure.query(async ({ ctx }) => ctx.userGroupModel.query()),
+
+  addManager: groupManageProcedure
+    .input(z.object({ groupId: z.string(), userId: z.string() }))
+    .mutation(async ({ input, ctx }) => ctx.userGroupModel.addManager(input.groupId, input.userId)),
 
   removeMember: groupManageProcedure
     .input(z.object({ groupId: z.string(), userId: z.string() }))
     .mutation(async ({ input, ctx }) =>
       ctx.userGroupModel.removeMember(input.groupId, input.userId),
+    ),
+
+  removeManager: groupManageProcedure
+    .input(z.object({ groupId: z.string(), userId: z.string() }))
+    .mutation(async ({ input, ctx }) =>
+      ctx.userGroupModel.removeManager(input.groupId, input.userId),
     ),
 
   updateGroup: groupManageProcedure
@@ -98,7 +105,7 @@ export const userGroupRouter = router({
   /**
    * 在组内创建话题
    */
-  createGroupTopic: groupMemberProcedure
+  createGroupTopic: groupAccessProcedure
     .input(
       z.object({
         agentId: z.string().optional(),
@@ -106,12 +113,16 @@ export const userGroupRouter = router({
         userGroupId: z.string(),
       }),
     )
-    .mutation(async ({ input, ctx }) => ctx.topicModel.createGroupTopic(input)),
+    .mutation(async ({ input, ctx }) => {
+      await ctx.accessService.assertCanViewGroup(input.userGroupId);
+
+      return ctx.topicModel.createGroupTopic(input);
+    }),
 
   /**
    * 获取组内所有话题（含锁定状态 + 创建者信息）
    */
-  getGroupTopics: groupMemberProcedure
+  getGroupTopics: groupAccessProcedure
     .input(
       z.object({
         current: z.number().optional(),
@@ -119,40 +130,54 @@ export const userGroupRouter = router({
         pageSize: z.number().optional(),
       }),
     )
-    .query(async ({ input, ctx }) =>
-      ctx.topicModel.findByUserGroupId(input.groupId, {
+    .query(async ({ input, ctx }) => {
+      await ctx.accessService.assertCanViewGroup(input.groupId);
+
+      return ctx.topicModel.findByUserGroupId(input.groupId, {
         current: input.current,
         pageSize: input.pageSize,
-      }),
-    ),
+      });
+    }),
 
   /**
    * 获取当前用户所在的所有组（含组详情）
    */
-  getMyGroups: groupMemberProcedure.query(async ({ ctx }) =>
+  getMyGroups: groupAccessProcedure.query(async ({ ctx }) =>
     ctx.userGroupModel.getUserGroupsWithDetails(),
   ),
 
   /**
    * 释放话题锁定
    */
-  releaseLock: groupMemberProcedure
+  releaseLock: groupAccessProcedure
     .input(z.object({ topicId: z.string() }))
-    .mutation(async ({ input, ctx }) => ctx.topicModel.releaseLock(input.topicId)),
+    .mutation(async ({ input, ctx }) => {
+      await ctx.accessService.assertCanAccessTopic(input.topicId);
+
+      return ctx.topicModel.releaseLock(input.topicId);
+    }),
 
   /**
    * 心跳续期
    */
-  renewLock: groupMemberProcedure
+  renewLock: groupAccessProcedure
     .input(z.object({ topicId: z.string() }))
-    .mutation(async ({ input, ctx }) => ctx.topicModel.renewLock(input.topicId)),
+    .mutation(async ({ input, ctx }) => {
+      await ctx.accessService.assertCanAccessTopic(input.topicId);
+
+      return ctx.topicModel.renewLock(input.topicId);
+    }),
 
   /**
    * 尝试锁定话题（进入话题时调用）
    */
-  tryLockTopic: groupMemberProcedure
+  tryLockTopic: groupAccessProcedure
     .input(z.object({ topicId: z.string() }))
-    .mutation(async ({ input, ctx }) => ctx.topicModel.tryLockTopic(input.topicId)),
+    .mutation(async ({ input, ctx }) => {
+      await ctx.accessService.assertCanAccessTopic(input.topicId);
+
+      return ctx.topicModel.tryLockTopic(input.topicId);
+    }),
 });
 
 export type UserGroupRouter = typeof userGroupRouter;
