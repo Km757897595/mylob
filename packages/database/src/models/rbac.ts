@@ -190,6 +190,18 @@ export class RbacModel {
       .orderBy(userRoles.createdAt);
   };
 
+  getUserRoleNames = async (userId?: string): Promise<string[]> => {
+    const activeRoles = await this.getUserRoles(userId);
+
+    return activeRoles.map((role) => role.name);
+  };
+
+  hasRoleName = async (roleName: string, userId?: string): Promise<boolean> => {
+    const roleNames = await this.getUserRoleNames(userId);
+
+    return roleNames.includes(roleName);
+  };
+
   /**
    * Get all active roles (not user-scoped)
    */
