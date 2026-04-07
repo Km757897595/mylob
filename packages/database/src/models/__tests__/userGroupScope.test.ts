@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getTestDB } from '../../core/getTestDB';
 import { roles, userGroupManagers, userGroups, users } from '../../schemas';
+import { userGroupMembers } from '../../schemas/userGroup';
 import type { LobeChatDatabase } from '../../type';
+import { UserGroupScopeModel } from '../userGroupScope';
 
 const serverDB: LobeChatDatabase = await getTestDB();
 
@@ -59,5 +61,41 @@ describe('userGroupManagers schema', () => {
       expect(role).toBeDefined();
       expect(role?.name).toBe(expectedName);
     }
+  });
+});
+
+describe('UserGroupScopeModel', () => {
+  it('expands descendant groups for managers', async () => {
+    await serverDB.insert(userGroups).values([
+      { id: 'ug_child', name: 'Child Group', parentId: 'ug_root' },
+      { id: 'ug_leaf', name: 'Leaf Group', parentId: 'ug_child' },
+    ]);
+    await serverDB.insert(userGroupManagers).values({
+      groupId: 'ug_root',
+      userId: 'admin-user',
+    });
+
+    const model = new UserGroupScopeModel(serverDB, 'admin-user');
+    const ids = await model.getManagedGroupIds();
+
+    expect(ids).toEqual(['ug_child', 'ug_leaf', 'ug_root']);
+  });
+
+  it('merges member groups and managed groups into visible groups', async () => {
+    await serverDB.insert(userGroups).values([{ id: 'ug_side', name: 'Side Group' }]);
+    await serverDB.insert(userGroupMembers).values({
+      groupId: 'ug_side',
+      role: 'member',
+      userId: 'member-user',
+    });
+    await serverDB.insert(userGroupManagers).values({
+      groupId: 'ug_root',
+      userId: 'member-user',
+    });
+
+    const model = new UserGroupScopeModel(serverDB, 'member-user');
+
+    expect(await model.canViewGroup('ug_side')).toBe(true);
+    expect(await model.canViewGroup('ug_root')).toBe(true);
   });
 });
