@@ -29,6 +29,15 @@ interface MemberItem {
   username: string | null;
 }
 
+interface ManagerItem {
+  avatar: string | null;
+  email: string | null;
+  fullName: string | null;
+  groupId: string;
+  userId: string;
+  username: string | null;
+}
+
 interface UserOption {
   label: string;
   value: string;
@@ -50,8 +59,11 @@ const GroupList = memo(() => {
   // 成员管理 Drawer 状态
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeGroup, setActiveGroup] = useState<GroupItem | null>(null);
+  const [managers, setManagers] = useState<ManagerItem[]>([]);
   const [members, setMembers] = useState<MemberItem[]>([]);
   const [memberLoading, setMemberLoading] = useState(false);
+  const [managerLoading, setManagerLoading] = useState(false);
+  const [addManagerUserId, setAddManagerUserId] = useState('');
   const [addUserId, setAddUserId] = useState('');
   const [addRole, setAddRole] = useState<'group_admin' | 'member'>('member');
   const [addUserOptions, setAddUserOptions] = useState<UserOption[]>([]);
@@ -126,19 +138,34 @@ const GroupList = memo(() => {
     }
   }, []);
 
+  const fetchManagers = useCallback(async (groupId: string) => {
+    setManagerLoading(true);
+    try {
+      const data = await lambdaClient.userGroup.getGroupManagers.query({ groupId });
+      setManagers(data as ManagerItem[]);
+    } catch {
+      setManagers([]);
+    } finally {
+      setManagerLoading(false);
+    }
+  }, []);
+
   const handleOpenMembers = useCallback(
     (group: GroupItem) => {
       setActiveGroup(group);
       setDrawerOpen(true);
       fetchMembers(group.id);
+      fetchManagers(group.id);
     },
-    [fetchMembers],
+    [fetchManagers, fetchMembers],
   );
 
   const handleDrawerClose = () => {
     setDrawerOpen(false);
     setActiveGroup(null);
+    setManagers([]);
     setMembers([]);
+    setAddManagerUserId('');
     setAddUserId('');
     setAddRole('member');
     setAddUserOptions([]);
@@ -197,6 +224,36 @@ const GroupList = memo(() => {
       fetchMembers(activeGroup.id);
     } catch {
       message.error(t('userGroups.removeMemberFailed'));
+    }
+  };
+
+  const handleAddManager = async () => {
+    if (!addManagerUserId || !activeGroup) return;
+    try {
+      await lambdaClient.userGroup.addManager.mutate({
+        groupId: activeGroup.id,
+        userId: addManagerUserId,
+      });
+      message.success(t('userGroups.addManagerSuccess'));
+      setAddManagerUserId('');
+      setAddUserOptions([]);
+      fetchManagers(activeGroup.id);
+    } catch {
+      message.error(t('userGroups.addManagerFailed'));
+    }
+  };
+
+  const handleRemoveManager = async (userId: string) => {
+    if (!activeGroup) return;
+    try {
+      await lambdaClient.userGroup.removeManager.mutate({
+        groupId: activeGroup.id,
+        userId,
+      });
+      message.success(t('userGroups.removeManagerSuccess'));
+      fetchManagers(activeGroup.id);
+    } catch {
+      message.error(t('userGroups.removeManagerFailed'));
     }
   };
 
@@ -259,6 +316,29 @@ const GroupList = memo(() => {
       ),
       title: t('userGroups.actions'),
       width: 80,
+    },
+  ];
+
+  const managerColumns: ColumnsType<ManagerItem> = [
+    {
+      key: 'user',
+      render: (_, record) => <span>{record.username || record.email || record.userId}</span>,
+      title: t('userGroups.managers'),
+    },
+    {
+      key: 'actions',
+      render: (_, record) => (
+        <Popconfirm
+          title={t('userGroups.removeManager')}
+          onConfirm={() => handleRemoveManager(record.userId)}
+        >
+          <Button danger size="small" type="text">
+            {t('userGroups.removeManager')}
+          </Button>
+        </Popconfirm>
+      ),
+      title: t('userGroups.actions'),
+      width: 120,
     },
   ];
 
@@ -367,48 +447,83 @@ const GroupList = memo(() => {
         onClose={handleDrawerClose}
       >
         <Flexbox gap={16}>
-          <Table
-            columns={memberColumns}
-            dataSource={members}
-            loading={memberLoading}
-            locale={{ emptyText: t('userGroups.noMembers') }}
-            pagination={false}
-            rowKey="userId"
-            size="small"
-          />
-
-          <Flexbox gap={8} style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-            <Select
-              showSearch
-              filterOption={false}
-              loading={addUserSearchLoading}
-              options={addUserOptions}
-              placeholder={t('userGroups.searchUserPlaceholder')}
-              style={{ width: '100%' }}
-              value={addUserId || undefined}
-              onChange={(val: string) => setAddUserId(val)}
-              onSearch={handleUserSearch}
-            />
-            <Flexbox horizontal gap={8}>
-              <Select
-                style={{ width: 140 }}
-                value={addRole}
-                options={[
-                  { label: t('userGroups.roleMember'), value: 'member' },
-                  { label: t('userGroups.roleAdmin'), value: 'group_admin' },
-                ]}
-                onChange={setAddRole}
+          <FormGroup title={t('userGroups.members')}>
+            <Flexbox gap={12}>
+              <Table
+                columns={memberColumns}
+                dataSource={members}
+                loading={memberLoading}
+                locale={{ emptyText: t('userGroups.noMembers') }}
+                pagination={false}
+                rowKey="userId"
+                size="small"
               />
-              <Button
-                disabled={!addUserId}
-                style={{ flex: 1 }}
-                type="primary"
-                onClick={handleAddMember}
-              >
-                {t('userGroups.addMember')}
-              </Button>
+
+              <Flexbox gap={8} style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+                <Select
+                  showSearch
+                  filterOption={false}
+                  loading={addUserSearchLoading}
+                  options={addUserOptions}
+                  placeholder={t('userGroups.searchUserPlaceholder')}
+                  style={{ width: '100%' }}
+                  value={addUserId || undefined}
+                  onChange={(val: string) => setAddUserId(val)}
+                  onSearch={handleUserSearch}
+                />
+                <Flexbox horizontal gap={8}>
+                  <Select
+                    style={{ width: 140 }}
+                    value={addRole}
+                    options={[
+                      { label: t('userGroups.roleMember'), value: 'member' },
+                      { label: t('userGroups.roleAdmin'), value: 'group_admin' },
+                    ]}
+                    onChange={setAddRole}
+                  />
+                  <Button
+                    disabled={!addUserId}
+                    style={{ flex: 1 }}
+                    type="primary"
+                    onClick={handleAddMember}
+                  >
+                    {t('userGroups.addMember')}
+                  </Button>
+                </Flexbox>
+              </Flexbox>
             </Flexbox>
-          </Flexbox>
+          </FormGroup>
+
+          <FormGroup title={t('userGroups.managers')}>
+            <Flexbox gap={12}>
+              <Table
+                columns={managerColumns}
+                dataSource={managers}
+                loading={managerLoading}
+                locale={{ emptyText: t('userGroups.noManagers') }}
+                pagination={false}
+                rowKey="userId"
+                size="small"
+              />
+
+              <Flexbox gap={8} style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
+                <Select
+                  showSearch
+                  filterOption={false}
+                  loading={addUserSearchLoading}
+                  options={addUserOptions}
+                  placeholder={t('userGroups.searchUserPlaceholder')}
+                  style={{ width: '100%' }}
+                  value={addManagerUserId || undefined}
+                  onChange={(val: string) => setAddManagerUserId(val)}
+                  onSearch={handleUserSearch}
+                />
+                <Button disabled={!addManagerUserId} type="primary" onClick={handleAddManager}>
+                  {t('userGroups.addManager')}
+                </Button>
+              </Flexbox>
+            </Flexbox>
+          </FormGroup>
         </Flexbox>
       </Drawer>
     </>

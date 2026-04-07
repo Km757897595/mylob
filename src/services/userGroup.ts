@@ -22,9 +22,20 @@ class UserGroupService {
   getGroupMembersWithDetails = (groupId: string) =>
     lambdaClient.userGroup.getGroupMembersWithDetails.query({ groupId });
 
+  getGroupManagers = (groupId: string) =>
+    lambdaClient.userGroup.getGroupManagers.query({ groupId });
+
+  addManager = (groupId: string, userId: string) =>
+    lambdaClient.userGroup.addManager.mutate({ groupId, userId });
+
+  removeManager = (groupId: string, userId: string) =>
+    lambdaClient.userGroup.removeManager.mutate({ groupId, userId });
+
   // ---- 使用类（主界面使用，只需登录 + 组成员校验） ----
 
   getMyGroups = () => lambdaClient.userGroup.getMyGroups.query();
+
+  getVisibleGroups = () => lambdaClient.userGroup.getVisibleGroups.query();
 
   getGroupTopics = (groupId: string, params?: { current?: number; pageSize?: number }) =>
     lambdaClient.userGroup.getGroupTopics.query({ groupId, ...params });

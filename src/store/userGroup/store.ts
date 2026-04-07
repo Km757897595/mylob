@@ -16,6 +16,7 @@ export interface GroupTopicItem {
 }
 
 export interface MyGroupItem {
+  accessMode?: 'both' | 'managed' | 'member';
   group: {
     accessedAt: Date;
     agentId: string | null;
@@ -29,7 +30,16 @@ export interface MyGroupItem {
     updatedAt: Date;
   };
   memberCount: number;
-  role: string;
+  role: string | null;
+}
+
+export interface GroupManagerItem {
+  avatar: string | null;
+  email: string | null;
+  fullName: string | null;
+  groupId: string;
+  userId: string;
+  username: string | null;
 }
 
 export interface UserGroupStore extends UserGroupState, UserGroupAction {}
@@ -44,6 +54,8 @@ interface UserGroupState {
   /** 组话题列表 */
   groupTopics: Record<string, GroupTopicItem[]>;
   loading: boolean;
+  /** 管理页面用的管理员列表 */
+  managers: Record<string, GroupManagerItem[]>;
   /** 管理页面用的成员列表 */
   members: Record<string, any[]>;
   /** 当前用户所在的组（侧边栏用） */
@@ -52,6 +64,7 @@ interface UserGroupState {
 
 interface UserGroupAction {
   // ---- 管理类 ----
+  addManager: (groupId: string, userId: string) => Promise<void>;
   addMember: (groupId: string, userId: string) => Promise<void>;
   createGroup: (params: { description?: string; name: string }) => Promise<void>;
   // ---- 使用类 ----
@@ -62,12 +75,14 @@ interface UserGroupAction {
   }) => Promise<string | undefined>;
   deleteGroup: (id: string) => Promise<void>;
   enterTopic: (topicId: string) => Promise<{ lockedBy?: string; success: boolean }>;
+  fetchGroupManagers: (groupId: string) => Promise<void>;
   fetchGroups: () => Promise<void>;
   fetchGroupTopics: (groupId: string) => Promise<void>;
-
   fetchMembers: (groupId: string) => Promise<void>;
   fetchMyGroups: () => Promise<void>;
+  fetchVisibleGroups: () => Promise<void>;
   leaveTopic: (topicId: string) => void;
+  removeManager: (groupId: string, userId: string) => Promise<void>;
   removeMember: (groupId: string, userId: string) => Promise<void>;
   setActiveGroupId: (id: string | null) => void;
 }
@@ -80,6 +95,7 @@ const initialState: UserGroupState = {
   groups: [],
   groupTopics: {},
   loading: false,
+  managers: {},
   members: {},
   myGroups: [],
 };
@@ -122,16 +138,30 @@ const createStore: StateCreator<UserGroupStore, [['zustand/devtools', never]]> =
     await get().fetchMembers(groupId);
   },
 
+  addManager: async (groupId, userId) => {
+    await userGroupService.addManager(groupId, userId);
+    await get().fetchGroupManagers(groupId);
+  },
+
   removeMember: async (groupId, userId) => {
     await userGroupService.removeMember(groupId, userId);
     await get().fetchMembers(groupId);
   },
 
+  removeManager: async (groupId, userId) => {
+    await userGroupService.removeManager(groupId, userId);
+    await get().fetchGroupManagers(groupId);
+  },
+
   // ============ 使用类 ============
 
   fetchMyGroups: async () => {
-    const myGroups = await userGroupService.getMyGroups();
-    set({ myGroups }, false, 'fetchMyGroups');
+    await get().fetchVisibleGroups();
+  },
+
+  fetchVisibleGroups: async () => {
+    const myGroups = await userGroupService.getVisibleGroups();
+    set({ myGroups }, false, 'fetchVisibleGroups');
   },
 
   fetchGroupTopics: async (groupId) => {
@@ -141,6 +171,11 @@ const createStore: StateCreator<UserGroupStore, [['zustand/devtools', never]]> =
       false,
       'fetchGroupTopics',
     );
+  },
+
+  fetchGroupManagers: async (groupId) => {
+    const managers = await userGroupService.getGroupManagers(groupId);
+    set((s) => ({ managers: { ...s.managers, [groupId]: managers } }), false, 'fetchGroupManagers');
   },
 
   createGroupTopic: async (params) => {

@@ -15,11 +15,11 @@ interface UserGroupProps {
 
 const UserGroup = memo<UserGroupProps>(({ itemKey }) => {
   const { t } = useTranslation('common');
-  const fetchMyGroups = useUserGroupStore((s) => s.fetchMyGroups);
+  const fetchVisibleGroups = useUserGroupStore((s) => s.fetchVisibleGroups);
 
   useEffect(() => {
-    fetchMyGroups();
-  }, [fetchMyGroups]);
+    fetchVisibleGroups();
+  }, [fetchVisibleGroups]);
 
   return (
     <AccordionItem

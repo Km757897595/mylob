@@ -146,6 +146,10 @@ export const userGroupRouter = router({
     ctx.userGroupModel.getUserGroupsWithDetails(),
   ),
 
+  getVisibleGroups: groupAccessProcedure.query(async ({ ctx }) =>
+    ctx.accessService.listVisibleGroups(),
+  ),
+
   /**
    * 释放话题锁定
    */

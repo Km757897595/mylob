@@ -13,11 +13,11 @@ import { useGroupTopicLockCleanup } from './useGroupTopicLockCleanup';
 const Layout: FC = () => {
   useGroupTopicLockCleanup();
 
-  // Ensure myGroups is loaded (needed for direct navigation to /ug/:ugid)
-  const fetchMyGroups = useUserGroupStore((s) => s.fetchMyGroups);
+  // Ensure visible groups are loaded (needed for direct navigation to /ug/:ugid)
+  const fetchVisibleGroups = useUserGroupStore((s) => s.fetchVisibleGroups);
   useEffect(() => {
-    fetchMyGroups();
-  }, [fetchMyGroups]);
+    fetchVisibleGroups();
+  }, [fetchVisibleGroups]);
 
   // Fetch agent config so agentStore.agentMap is populated for Header display
   const agentId = useUserGroupStore((s) => selectActiveGroupDetail(s)?.group.agentId);
