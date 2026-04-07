@@ -227,12 +227,16 @@ export const ALL_SCOPE = 'ALL';
  * RBAC Role Constants Definition
  */
 export const SYSTEM_DEFAULT_ROLES = {
-  SUPER_ADMIN: 'super_admin',
+  BASIC_USER: 'basic_user',
+  DEVELOPER: 'developer',
+  ENTERPRISE_ADMIN: 'enterprise_admin',
 } as const;
 
 /**
  * Role Description Mapping
  */
 export const ROLE_DESCRIPTIONS = {
-  [SYSTEM_DEFAULT_ROLES.SUPER_ADMIN]: 'Administrator with all system permissions',
+  [SYSTEM_DEFAULT_ROLES.BASIC_USER]: 'Default product role for signed-in users',
+  [SYSTEM_DEFAULT_ROLES.DEVELOPER]: 'Scoped enterprise operator with managed-group access',
+  [SYSTEM_DEFAULT_ROLES.ENTERPRISE_ADMIN]: 'Administrator with enterprise-wide permissions',
 } as const;

@@ -23,5 +23,6 @@ export * from './topic';
 export * from './topicLock';
 export * from './user';
 export * from './userGroup';
+export * from './userGroupManager';
 export * from './userMemories';
 export * from './userQuota';

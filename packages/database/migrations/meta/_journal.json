@@ -679,6 +679,13 @@
       "when": 1774742400000,
       "tag": "0096_user_group_agent_binding",
       "breakpoints": true
+    },
+    {
+      "breakpoints": true,
+      "idx": 97,
+      "tag": "0097_add_user_group_managers_and_seed_enterprise_roles",
+      "version": "7",
+      "when": 1775347200000
     }
   ],
   "version": "6"
