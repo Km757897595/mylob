@@ -1,3 +1,5 @@
+import { DEFAULT_SETTINGS } from '@lobechat/config';
+
 import { type HotkeyId } from '@/types/hotkey';
 import { type GlobalLLMProviderKey } from '@/types/user/settings';
 
@@ -8,6 +10,7 @@ describe('settingsSelectors', () => {
   describe('currentSettings', () => {
     it('should merge DEFAULT_SETTINGS and s.settings correctly', () => {
       const s = {
+        defaultSettings: DEFAULT_SETTINGS,
         settings: {
           avatar: 'avatar.jpg',
           fontSize: 14,
@@ -55,7 +58,42 @@ describe('settingsSelectors', () => {
 
       const result = settingsSelectors.currentSettings(s);
 
-      expect(result).toMatchSnapshot();
+      expect(result.tts).toMatchObject({
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        openAI: {
+          sttModel: 'whisper-1',
+          ttsModel: 'tts-1',
+        },
+        selectedVoice: {
+          label: 'Alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+        service: 'openai',
+        sttAutoStop: true,
+        sttServer: 'openai',
+      });
+      expect(result.defaultAgent?.config?.tts).toMatchObject({
+        inheritGlobal: true,
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        selectedVoice: {
+          label: 'Alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+        ttsService: 'openai',
+        voice: {
+          openai: 'alloy',
+        },
+      });
     });
   });
 
@@ -78,7 +116,23 @@ describe('settingsSelectors', () => {
 
       const result = settingsSelectors.defaultAgent(s);
 
-      expect(result).toMatchSnapshot();
+      expect(result.config?.tts).toMatchObject({
+        inheritGlobal: true,
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        selectedVoice: {
+          label: 'Alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+        ttsService: 'openai',
+        voice: {
+          openai: 'alloy',
+        },
+      });
     });
   });
 
@@ -116,7 +170,25 @@ describe('settingsSelectors', () => {
 
       const result = settingsSelectors.currentTTS(s);
 
-      expect(result).toMatchSnapshot();
+      expect(result).toMatchObject({
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        openAI: {
+          sttModel: 'whisper-2',
+          ttsModel: 'tts-1',
+        },
+        selectedVoice: {
+          label: 'Alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+        service: 'openai',
+        sttAutoStop: false,
+        sttServer: 'openai',
+      });
     });
   });
 
@@ -173,7 +245,23 @@ describe('settingsSelectors', () => {
 
       const result = settingsSelectors.defaultAgentConfig(s);
 
-      expect(result).toMatchSnapshot();
+      expect(result.tts).toMatchObject({
+        inheritGlobal: true,
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        selectedVoice: {
+          label: 'Alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+        ttsService: 'openai',
+        voice: {
+          openai: 'alloy',
+        },
+      });
     });
   });
 

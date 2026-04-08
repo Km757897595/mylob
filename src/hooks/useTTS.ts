@@ -33,6 +33,15 @@ export const useTTS = (content: string, config?: TTSConfig) => {
   const businessTTSProvider = useBusinessTTSProvider();
   let useSelectedTTS;
   let options: any = {};
+  const useOfflineFallbackTTS: typeof useOpenAITTS = () =>
+    ({
+      audio: undefined,
+      isGlobalLoading: false,
+      response: undefined,
+      setText: () => undefined,
+      start: () => undefined,
+      stop: () => undefined,
+    }) as ReturnType<typeof useOpenAITTS>;
   switch (config?.server || ttsAgentSettings.ttsService) {
     case 'openai': {
       useSelectedTTS = useOpenAITTS;
@@ -73,6 +82,12 @@ export const useTTS = (content: string, config?: TTSConfig) => {
           voice: config?.voice || voice,
         },
       } as MicrosoftSpeechOptions;
+      break;
+    }
+    case 'offline': {
+      // Temporary compatibility fallback before offline TTS support lands.
+      useSelectedTTS = useOfflineFallbackTTS;
+      options = {};
       break;
     }
   }

@@ -10,6 +10,17 @@ import { DEFAULT_AGENT_META } from '../meta';
 import { DEFAULT_MODEL } from './llm';
 
 export const DEFAUTT_AGENT_TTS_CONFIG: LobeAgentTTSConfig = {
+  inheritGlobal: true,
+  offline: {
+    enabled: true,
+    fallbackVoice: 'female',
+    preferOfflineWhenUnavailable: true,
+  },
+  selectedVoice: {
+    label: 'Alloy',
+    service: 'openai',
+    voiceId: 'alloy',
+  },
   showAllLocaleVoice: false,
   sttLocale: 'auto',
   ttsService: 'openai',

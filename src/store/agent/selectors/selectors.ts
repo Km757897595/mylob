@@ -19,6 +19,7 @@ import { VoiceList } from '@lobehub/tts';
 
 import { DEFAULT_OPENING_QUESTIONS } from '@/features/AgentSetting/store/selectors';
 import { filterToolIds } from '@/helpers/toolFilters';
+import { merge } from '@/utils/merge';
 
 import { type AgentStoreState } from '../initialState';
 import { builtinAgentSelectors } from './builtinAgentSelectors';
@@ -139,13 +140,13 @@ const currentAgentFiles = (s: AgentStoreState) => {
 const currentAgentTTS = (s: AgentStoreState): LobeAgentTTSConfig => {
   const config = currentAgentConfig(s);
 
-  return config?.tts || DEFAUTT_AGENT_TTS_CONFIG;
+  return merge(DEFAUTT_AGENT_TTS_CONFIG, config?.tts || {});
 };
 
 const currentAgentTTSVoice =
   (lang: string) =>
   (s: AgentStoreState): string => {
-    const { voice, ttsService } = currentAgentTTS(s);
+    const { voice, ttsService, offline } = currentAgentTTS(s);
     const voiceList = new VoiceList(lang);
     let currentVoice;
     switch (ttsService) {
@@ -159,6 +160,10 @@ const currentAgentTTSVoice =
       }
       case 'microsoft': {
         currentVoice = voice.microsoft || (voiceList.microsoftVoiceOptions?.[0].value as string);
+        break;
+      }
+      case 'offline': {
+        currentVoice = offline?.fallbackVoice === 'male' ? 'offline-male' : 'offline-female';
         break;
       }
     }

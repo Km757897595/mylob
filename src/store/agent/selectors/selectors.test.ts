@@ -410,6 +410,51 @@ describe('agentSelectors', () => {
       const tts = agentSelectors.currentAgentTTS(state);
 
       expect(tts).toEqual(DEFAUTT_AGENT_TTS_CONFIG);
+      expect(tts).toMatchObject({
+        inheritGlobal: true,
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        selectedVoice: {
+          label: 'Alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+      });
+    });
+
+    it('should merge legacy partial TTS config with new defaults', () => {
+      const state = createState({
+        activeAgentId: 'agent-1',
+        agentMap: {
+          'agent-1': {
+            tts: {
+              ttsService: 'openai',
+              voice: { openai: 'nova' },
+            },
+          },
+        },
+      });
+
+      const tts = agentSelectors.currentAgentTTS(state);
+
+      expect(tts).toMatchObject({
+        inheritGlobal: true,
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        selectedVoice: {
+          label: 'Alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+        ttsService: 'openai',
+        voice: { openai: 'nova' },
+      });
     });
   });
 
@@ -464,6 +509,27 @@ describe('agentSelectors', () => {
       });
 
       expect(agentSelectors.currentAgentTTSVoice('en-US')(state)).toBe('alloy');
+    });
+
+    it('should return offline fallback voice id when ttsService is offline', () => {
+      const state = createState({
+        activeAgentId: 'agent-1',
+        agentMap: {
+          'agent-1': {
+            tts: {
+              offline: {
+                enabled: true,
+                fallbackVoice: 'male',
+                preferOfflineWhenUnavailable: true,
+              },
+              ttsService: 'offline',
+              voice: { openai: 'alloy' },
+            },
+          },
+        },
+      });
+
+      expect(agentSelectors.currentAgentTTSVoice('en-US')(state)).toBe('offline-male');
     });
   });
 
