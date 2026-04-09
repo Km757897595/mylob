@@ -13,6 +13,74 @@ const createState = (overrides: Partial<AgentStoreState> = {}): AgentStoreState 
 });
 
 describe('agentByIdSelectors', () => {
+  describe('getAgentTTSByIdWithGlobal', () => {
+    it('should apply global TTS when agent inherits global settings', () => {
+      const state = createState({
+        agentMap: {
+          'agent-1': {
+            tts: {
+              inheritGlobal: true,
+            },
+          },
+        },
+      });
+
+      const tts = agentByIdSelectors.getAgentTTSByIdWithGlobal('agent-1', {
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        openAI: { sttModel: 'whisper-1', ttsModel: 'tts-1' },
+        selectedVoice: {
+          label: 'edge-custom',
+          service: 'edge',
+          voiceId: 'edge-custom',
+        },
+        service: 'edge',
+        sttAutoStop: true,
+        sttServer: 'openai',
+      } as any)(state);
+
+      expect(tts.ttsService).toBe('edge');
+      expect(tts.voice.edge).toBe('edge-custom');
+      expect(tts.selectedVoice?.voiceId).toBe('edge-custom');
+    });
+
+    it('should not apply global TTS when inheritGlobal is false', () => {
+      const state = createState({
+        agentMap: {
+          'agent-1': {
+            tts: {
+              inheritGlobal: false,
+            },
+          },
+        },
+      });
+
+      const tts = agentByIdSelectors.getAgentTTSByIdWithGlobal('agent-1', {
+        offline: {
+          enabled: true,
+          fallbackVoice: 'female',
+          preferOfflineWhenUnavailable: true,
+        },
+        openAI: { sttModel: 'whisper-1', ttsModel: 'tts-1' },
+        selectedVoice: {
+          label: 'edge-custom',
+          service: 'edge',
+          voiceId: 'edge-custom',
+        },
+        service: 'edge',
+        sttAutoStop: true,
+        sttServer: 'openai',
+      } as any)(state);
+
+      expect(tts.ttsService).toBe('openai');
+      expect(tts.voice.openai).toBe('alloy');
+      expect(tts.selectedVoice?.voiceId).toBe('alloy');
+    });
+  });
+
   describe('getAgentBuilderContextById', () => {
     it('should return builder context from existing agent config', () => {
       const state = createState({

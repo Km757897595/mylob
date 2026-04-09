@@ -27,76 +27,92 @@ interface TTSConfig extends TTSOptions {
 
 export const useTTS = (content: string, config?: TTSConfig) => {
   const ttsSettings = useUserStore(settingsSelectors.currentTTS, isEqual);
-  const ttsAgentSettings = useAgentStore(agentSelectors.currentAgentTTS, isEqual);
+  const ttsAgentSettings = useAgentStore(
+    agentSelectors.currentAgentTTSWithGlobal(ttsSettings),
+    isEqual,
+  );
   const lang = useGlobalStore(globalGeneralSelectors.currentLanguage);
-  const voice = useAgentStore(agentSelectors.currentAgentTTSVoice(lang));
+  const voice = useAgentStore(agentSelectors.currentAgentTTSVoiceWithGlobal(lang, ttsSettings));
   const businessTTSProvider = useBusinessTTSProvider();
-  let useSelectedTTS;
-  let options: any = {};
-  const useOfflineFallbackTTS: typeof useOpenAITTS = () =>
-    ({
+  const resolvedService = config?.server || ttsAgentSettings.ttsService;
+  const resolvedVoice = config?.voice || voice;
+
+  const openAIOptions = {
+    api: {
+      headers: createHeaderWithOpenAI(),
+      serviceUrl: API_ENDPOINTS.tts(ENABLE_BUSINESS_FEATURES ? businessTTSProvider : 'openai'),
+    },
+    options: {
+      model: ttsSettings.openAI.ttsModel,
+      voice: resolvedVoice,
+    },
+  } as OpenAITTSOptions;
+
+  const edgeOptions = {
+    api: {
+      /**
+       * @description client fetch
+       * serviceUrl: TTS_URL.edge,
+       */
+    },
+    options: {
+      voice: resolvedVoice,
+    },
+  } as EdgeSpeechOptions;
+
+  const microsoftOptions = {
+    api: {
+      serviceUrl: API_ENDPOINTS.microsoft,
+    },
+    options: {
+      voice: resolvedVoice,
+    },
+  } as MicrosoftSpeechOptions;
+
+  // Always call provider hooks in a stable order to avoid hook-order changes when service switches.
+  const openAITTS = useOpenAITTS(content, {
+    ...config,
+    ...openAIOptions,
+    onFinish: (arraybuffers) => {
+      config?.onUpload?.(openAIOptions.options.voice || 'alloy', arraybuffers);
+    },
+  });
+  const edgeTTS = useEdgeSpeech(content, {
+    ...config,
+    ...edgeOptions,
+    onFinish: (arraybuffers) => {
+      config?.onUpload?.(edgeOptions.options.voice || 'alloy', arraybuffers);
+    },
+  });
+  const microsoftTTS = useMicrosoftSpeech(content, {
+    ...config,
+    ...microsoftOptions,
+    onFinish: (arraybuffers) => {
+      config?.onUpload?.(microsoftOptions.options.voice || 'alloy', arraybuffers);
+    },
+  });
+
+  if (resolvedService === 'offline') {
+    return {
       audio: undefined,
       isGlobalLoading: false,
       response: undefined,
       setText: () => undefined,
       start: () => undefined,
       stop: () => undefined,
-    }) as ReturnType<typeof useOpenAITTS>;
-  switch (config?.server || ttsAgentSettings.ttsService) {
-    case 'openai': {
-      useSelectedTTS = useOpenAITTS;
-      options = {
-        api: {
-          headers: createHeaderWithOpenAI(),
-          serviceUrl: API_ENDPOINTS.tts(ENABLE_BUSINESS_FEATURES ? businessTTSProvider : 'openai'),
-        },
-        options: {
-          model: ttsSettings.openAI.ttsModel,
-          voice: config?.voice || voice,
-        },
-      } as OpenAITTSOptions;
-      break;
-    }
-    case 'edge': {
-      useSelectedTTS = useEdgeSpeech;
-      options = {
-        api: {
-          /**
-           * @description client fetch
-           * serviceUrl: TTS_URL.edge,
-           */
-        },
-        options: {
-          voice: config?.voice || voice,
-        },
-      } as EdgeSpeechOptions;
-      break;
-    }
-    case 'microsoft': {
-      useSelectedTTS = useMicrosoftSpeech;
-      options = {
-        api: {
-          serviceUrl: API_ENDPOINTS.microsoft,
-        },
-        options: {
-          voice: config?.voice || voice,
-        },
-      } as MicrosoftSpeechOptions;
-      break;
-    }
-    case 'offline': {
-      // Temporary compatibility fallback before offline TTS support lands.
-      useSelectedTTS = useOfflineFallbackTTS;
-      options = {};
-      break;
-    }
+    };
   }
 
-  return useSelectedTTS(content, {
-    ...config,
-    ...options,
-    onFinish: (arraybuffers) => {
-      config?.onUpload?.(options.voice || 'alloy', arraybuffers);
-    },
-  });
+  switch (resolvedService) {
+    case 'edge': {
+      return edgeTTS;
+    }
+    case 'microsoft': {
+      return microsoftTTS;
+    }
+    case 'openai':
+    default: {
+      return openAITTS;
+    }
+  }
 };

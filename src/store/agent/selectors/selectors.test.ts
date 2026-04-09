@@ -3,6 +3,7 @@ import {
   DEFAULT_AGENT_CONFIG,
   DEFAULT_AVATAR,
   DEFAULT_MODEL,
+  DEFAULT_TTS_CONFIG,
   DEFAUTT_AGENT_TTS_CONFIG,
   INBOX_SESSION_ID,
 } from '@lobechat/const';
@@ -385,20 +386,30 @@ describe('agentSelectors', () => {
   });
 
   describe('currentAgentTTS', () => {
-    it('should return TTS config from current agent', () => {
-      const state = createState({
-        activeAgentId: 'agent-1',
-        agentMap: {
-          'agent-1': {
-            tts: { ttsService: 'openai', voice: { openai: 'nova' } },
-          },
+    it('should inherit global defaults when inheritGlobal is true', () => {
+      const globalTTS = {
+        ...DEFAULT_TTS_CONFIG,
+        offline: {
+          enabled: false,
+          fallbackVoice: 'male',
+          preferOfflineWhenUnavailable: false,
         },
-      });
+        selectedVoice: {
+          label: 'Edge Voice',
+          service: 'edge',
+          voiceId: 'edge-voice',
+        },
+        service: 'edge',
+      };
+      const tts = agentSelectors.resolveAgentTTS(
+        { inheritGlobal: true, ttsService: 'openai', voice: { openai: 'nova' } } as any,
+        globalTTS,
+      );
 
-      const tts = agentSelectors.currentAgentTTS(state);
-
-      expect(tts.ttsService).toBe('openai');
-      expect(tts.voice?.openai).toBe('nova');
+      expect(tts.ttsService).toBe('edge');
+      expect(tts.voice?.edge).toBe('edge-voice');
+      expect(tts.selectedVoice?.voiceId).toBe('edge-voice');
+      expect(tts.offline?.enabled).toBe(false);
     });
 
     it('should return default TTS config when not specified', () => {
@@ -425,12 +436,134 @@ describe('agentSelectors', () => {
       });
     });
 
+    it('should apply global TTS when using currentAgentTTSWithGlobal', () => {
+      const state = createState({
+        activeAgentId: 'agent-1',
+        agentMap: {
+          'agent-1': {
+            tts: { inheritGlobal: true, ttsService: 'openai', voice: { openai: 'nova' } },
+          },
+        },
+      });
+      const tts = agentSelectors.currentAgentTTSWithGlobal({
+        ...DEFAULT_TTS_CONFIG,
+        selectedVoice: {
+          label: 'microsoft-custom',
+          service: 'microsoft',
+          voiceId: 'microsoft-custom',
+        },
+        service: 'microsoft',
+      } as any)(state);
+
+      expect(tts.ttsService).toBe('microsoft');
+      expect(tts.voice.microsoft).toBe('microsoft-custom');
+      expect(tts.selectedVoice?.voiceId).toBe('microsoft-custom');
+    });
+
+    it('should not apply global TTS when inheritGlobal is false without agent overrides', () => {
+      const state = createState({
+        activeAgentId: 'agent-1',
+        agentMap: {
+          'agent-1': {
+            tts: { inheritGlobal: false },
+          },
+        },
+      });
+      const tts = agentSelectors.currentAgentTTSWithGlobal({
+        ...DEFAULT_TTS_CONFIG,
+        selectedVoice: {
+          label: 'edge-custom',
+          service: 'edge',
+          voiceId: 'edge-custom',
+        },
+        service: 'edge',
+      } as any)(state);
+
+      expect(tts.ttsService).toBe('openai');
+      expect(tts.voice.openai).toBe('alloy');
+      expect(tts.selectedVoice?.voiceId).toBe('alloy');
+    });
+
+    it('should allow agent overrides when inheritGlobal is false', () => {
+      const state = createState({
+        activeAgentId: 'agent-1',
+        agentMap: {
+          'agent-1': {
+            tts: {
+              inheritGlobal: false,
+              offline: {
+                enabled: false,
+                fallbackVoice: 'male',
+                preferOfflineWhenUnavailable: false,
+              },
+              selectedVoice: {
+                label: 'Nova',
+                service: 'openai',
+                voiceId: 'nova',
+              },
+            },
+          },
+        },
+      });
+
+      const tts = agentSelectors.currentAgentTTS(state);
+
+      expect(tts).toMatchObject({
+        selectedVoice: {
+          label: 'Nova',
+          service: 'openai',
+          voiceId: 'nova',
+        },
+        ttsService: 'openai',
+        voice: { openai: 'nova' },
+      });
+      expect(tts.offline?.enabled).toBe(false);
+    });
+
+    it('should hydrate legacy fields from selectedVoice', () => {
+      const state = createState({
+        activeAgentId: 'agent-1',
+        agentMap: {
+          'agent-1': {
+            tts: {
+              inheritGlobal: false,
+              selectedVoice: {
+                label: 'Edge Custom',
+                service: 'edge',
+                voiceId: 'edge-custom',
+              },
+            },
+          },
+        },
+      });
+
+      const tts = agentSelectors.currentAgentTTS(state);
+
+      expect(tts.ttsService).toBe('edge');
+      expect(tts.voice?.edge).toBe('edge-custom');
+    });
+
+    it('should sync offline fallbackVoice from selectedVoice', () => {
+      const tts = agentSelectors.resolveAgentTTS({
+        inheritGlobal: false,
+        selectedVoice: {
+          label: 'offline-male',
+          service: 'offline',
+          voiceId: 'offline-male',
+        },
+      } as any);
+
+      expect(tts.ttsService).toBe('offline');
+      expect(tts.offline?.fallbackVoice).toBe('male');
+    });
+
     it('should merge legacy partial TTS config with new defaults', () => {
       const state = createState({
         activeAgentId: 'agent-1',
         agentMap: {
           'agent-1': {
             tts: {
+              inheritGlobal: false,
               ttsService: 'openai',
               voice: { openai: 'nova' },
             },
@@ -441,20 +574,48 @@ describe('agentSelectors', () => {
       const tts = agentSelectors.currentAgentTTS(state);
 
       expect(tts).toMatchObject({
-        inheritGlobal: true,
+        inheritGlobal: false,
         offline: {
           enabled: true,
           fallbackVoice: 'female',
           preferOfflineWhenUnavailable: true,
         },
         selectedVoice: {
-          label: 'Alloy',
+          label: 'nova',
           service: 'openai',
-          voiceId: 'alloy',
+          voiceId: 'nova',
         },
         ttsService: 'openai',
         voice: { openai: 'nova' },
       });
+    });
+
+    it('should keep legacy service when inheritGlobal is false with global config provided', () => {
+      const state = createState({
+        activeAgentId: 'agent-1',
+        agentMap: {
+          'agent-1': {
+            tts: {
+              inheritGlobal: false,
+              ttsService: 'edge',
+              voice: { edge: 'edge-custom' },
+            },
+          },
+        },
+      });
+      const tts = agentSelectors.currentAgentTTSWithGlobal({
+        ...DEFAULT_TTS_CONFIG,
+        selectedVoice: {
+          label: 'alloy',
+          service: 'openai',
+          voiceId: 'alloy',
+        },
+        service: 'openai',
+      } as any)(state);
+
+      expect(tts.ttsService).toBe('edge');
+      expect(tts.voice.edge).toBe('edge-custom');
+      expect(tts.selectedVoice?.voiceId).toBe('edge-custom');
     });
   });
 
@@ -464,7 +625,7 @@ describe('agentSelectors', () => {
         activeAgentId: 'agent-1',
         agentMap: {
           'agent-1': {
-            tts: { ttsService: 'openai', voice: { openai: 'nova' } },
+            tts: { inheritGlobal: false, ttsService: 'openai', voice: { openai: 'nova' } },
           },
         },
       });
@@ -477,7 +638,7 @@ describe('agentSelectors', () => {
         activeAgentId: 'agent-1',
         agentMap: {
           'agent-1': {
-            tts: { ttsService: 'edge', voice: { edge: 'edge-custom' } },
+            tts: { inheritGlobal: false, ttsService: 'edge', voice: { edge: 'edge-custom' } },
           },
         },
       });
@@ -490,7 +651,11 @@ describe('agentSelectors', () => {
         activeAgentId: 'agent-1',
         agentMap: {
           'agent-1': {
-            tts: { ttsService: 'microsoft', voice: { microsoft: 'microsoft-custom' } },
+            tts: {
+              inheritGlobal: false,
+              ttsService: 'microsoft',
+              voice: { microsoft: 'microsoft-custom' },
+            },
           },
         },
       });
@@ -503,7 +668,7 @@ describe('agentSelectors', () => {
         activeAgentId: 'agent-1',
         agentMap: {
           'agent-1': {
-            tts: { ttsService: 'openai', voice: {} },
+            tts: { inheritGlobal: false, ttsService: 'openai', voice: {} },
           },
         },
       });
@@ -517,6 +682,7 @@ describe('agentSelectors', () => {
         agentMap: {
           'agent-1': {
             tts: {
+              inheritGlobal: false,
               offline: {
                 enabled: true,
                 fallbackVoice: 'male',

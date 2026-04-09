@@ -13,6 +13,8 @@ import {
   type LobeAgentTTSConfig,
   type MetaData,
   type RuntimeEnvConfig,
+  type UserTTSConfig,
+  type VoiceCatalogSelection,
 } from '@lobechat/types';
 import { KnowledgeType } from '@lobechat/types';
 import { VoiceList } from '@lobehub/tts';
@@ -137,38 +139,168 @@ const currentAgentFiles = (s: AgentStoreState) => {
   return config?.files || [];
 };
 
+const applySelectedVoiceToLegacyFields = (config: LobeAgentTTSConfig): LobeAgentTTSConfig => {
+  const selectedVoice = config.selectedVoice;
+  if (!selectedVoice) return config;
+
+  const nextVoice = { ...DEFAUTT_AGENT_TTS_CONFIG.voice, ...config.voice };
+  let nextOffline = config.offline;
+
+  switch (selectedVoice.service) {
+    case 'openai': {
+      nextVoice.openai = selectedVoice.voiceId;
+      break;
+    }
+    case 'edge': {
+      nextVoice.edge = selectedVoice.voiceId;
+      break;
+    }
+    case 'microsoft': {
+      nextVoice.microsoft = selectedVoice.voiceId;
+      break;
+    }
+    case 'offline': {
+      nextOffline = {
+        ...config.offline,
+        fallbackVoice: selectedVoice.voiceId === 'offline-male' ? 'male' : 'female',
+      };
+      break;
+    }
+  }
+
+  return {
+    ...config,
+    offline: nextOffline,
+    ttsService: selectedVoice.service,
+    voice: nextVoice,
+  };
+};
+
+const deriveSelectedVoiceFromLegacyFields = (
+  config: LobeAgentTTSConfig | null | undefined,
+): VoiceCatalogSelection | undefined => {
+  if (!config || config.selectedVoice) return config?.selectedVoice;
+
+  switch (config.ttsService) {
+    case 'openai': {
+      const voiceId = config.voice?.openai;
+      if (!voiceId) return;
+      return { label: voiceId, service: 'openai', voiceId };
+    }
+    case 'edge': {
+      const voiceId = config.voice?.edge;
+      if (!voiceId) return;
+      return { label: voiceId, service: 'edge', voiceId };
+    }
+    case 'microsoft': {
+      const voiceId = config.voice?.microsoft;
+      if (!voiceId) return;
+      return { label: voiceId, service: 'microsoft', voiceId };
+    }
+    case 'offline': {
+      const voiceId = config.offline?.fallbackVoice === 'male' ? 'offline-male' : 'offline-female';
+      return { label: voiceId, service: 'offline', voiceId };
+    }
+  }
+};
+
+const resolveAgentTTSConfig = (
+  agentTTS: LobeAgentTTSConfig | null | undefined,
+  globalTTS?: UserTTSConfig,
+): LobeAgentTTSConfig => {
+  const inheritGlobal = agentTTS?.inheritGlobal !== false;
+  const selectedVoice =
+    inheritGlobal && globalTTS?.selectedVoice
+      ? globalTTS.selectedVoice
+      : DEFAUTT_AGENT_TTS_CONFIG.selectedVoice;
+  const base = merge(DEFAUTT_AGENT_TTS_CONFIG, {
+    offline: inheritGlobal ? globalTTS?.offline : undefined,
+    selectedVoice,
+    ttsService:
+      inheritGlobal && globalTTS?.service ? globalTTS.service : DEFAUTT_AGENT_TTS_CONFIG.ttsService,
+  });
+  const baseWithLegacy = applySelectedVoiceToLegacyFields(base);
+  const merged = merge(baseWithLegacy, agentTTS || {});
+  const explicitSelectedVoice = agentTTS?.selectedVoice;
+  const resolvedWithoutLegacySync = inheritGlobal
+    ? {
+        ...merged,
+        offline: baseWithLegacy.offline,
+        selectedVoice: baseWithLegacy.selectedVoice,
+        ttsService: baseWithLegacy.ttsService,
+        voice: baseWithLegacy.voice,
+      }
+    : merged;
+  const legacySelectedVoice =
+    !inheritGlobal && !explicitSelectedVoice
+      ? deriveSelectedVoiceFromLegacyFields(agentTTS)
+      : undefined;
+  const resolved = legacySelectedVoice
+    ? {
+        ...resolvedWithoutLegacySync,
+        selectedVoice: legacySelectedVoice,
+      }
+    : resolvedWithoutLegacySync;
+  const shouldSyncLegacy =
+    inheritGlobal || Boolean(explicitSelectedVoice) || Boolean(legacySelectedVoice);
+
+  return shouldSyncLegacy ? applySelectedVoiceToLegacyFields(resolved) : resolved;
+};
+
+const resolveAgentTTS = (
+  agentTTS: LobeAgentTTSConfig | null | undefined,
+  globalTTS?: UserTTSConfig,
+): LobeAgentTTSConfig => resolveAgentTTSConfig(agentTTS, globalTTS);
+
 const currentAgentTTS = (s: AgentStoreState): LobeAgentTTSConfig => {
   const config = currentAgentConfig(s);
 
-  return merge(DEFAUTT_AGENT_TTS_CONFIG, config?.tts || {});
+  return resolveAgentTTS(config?.tts);
+};
+
+const currentAgentTTSWithGlobal =
+  (globalTTS?: UserTTSConfig) =>
+  (s: AgentStoreState): LobeAgentTTSConfig => {
+    const config = currentAgentConfig(s);
+
+    return resolveAgentTTS(config?.tts, globalTTS);
+  };
+
+const getVoiceFromTTSConfig = (lang: string, tts: LobeAgentTTSConfig): string => {
+  const { voice, ttsService, offline } = tts;
+  const voiceList = new VoiceList(lang);
+  let currentVoice;
+  switch (ttsService) {
+    case 'openai': {
+      currentVoice = voice.openai || (VoiceList.openaiVoiceOptions?.[0].value as string);
+      break;
+    }
+    case 'edge': {
+      currentVoice = voice.edge || (voiceList.edgeVoiceOptions?.[0].value as string);
+      break;
+    }
+    case 'microsoft': {
+      currentVoice = voice.microsoft || (voiceList.microsoftVoiceOptions?.[0].value as string);
+      break;
+    }
+    case 'offline': {
+      currentVoice = offline?.fallbackVoice === 'male' ? 'offline-male' : 'offline-female';
+      break;
+    }
+  }
+
+  return currentVoice || 'alloy';
 };
 
 const currentAgentTTSVoice =
   (lang: string) =>
-  (s: AgentStoreState): string => {
-    const { voice, ttsService, offline } = currentAgentTTS(s);
-    const voiceList = new VoiceList(lang);
-    let currentVoice;
-    switch (ttsService) {
-      case 'openai': {
-        currentVoice = voice.openai || (VoiceList.openaiVoiceOptions?.[0].value as string);
-        break;
-      }
-      case 'edge': {
-        currentVoice = voice.edge || (voiceList.edgeVoiceOptions?.[0].value as string);
-        break;
-      }
-      case 'microsoft': {
-        currentVoice = voice.microsoft || (voiceList.microsoftVoiceOptions?.[0].value as string);
-        break;
-      }
-      case 'offline': {
-        currentVoice = offline?.fallbackVoice === 'male' ? 'offline-male' : 'offline-female';
-        break;
-      }
-    }
-    return currentVoice || 'alloy';
-  };
+  (s: AgentStoreState): string =>
+    getVoiceFromTTSConfig(lang, currentAgentTTS(s));
+
+const currentAgentTTSVoiceWithGlobal =
+  (lang: string, globalTTS?: UserTTSConfig) =>
+  (s: AgentStoreState): string =>
+    getVoiceFromTTSConfig(lang, currentAgentTTSWithGlobal(globalTTS)(s));
 
 const currentEnabledKnowledge = (s: AgentStoreState) => {
   const knowledgeBases = currentAgentKnowledgeBases(s);
@@ -282,7 +414,9 @@ export const agentSelectors = {
   currentAgentPlugins,
   currentAgentSystemRole,
   currentAgentTTS,
+  currentAgentTTSWithGlobal,
   currentAgentTTSVoice,
+  currentAgentTTSVoiceWithGlobal,
   currentAgentTags,
   currentAgentTitle,
   currentAgentWorkingDirectory,
@@ -303,4 +437,5 @@ export const agentSelectors = {
   isCurrentAgentExternal,
   openingMessage,
   openingQuestions,
+  resolveAgentTTS,
 };

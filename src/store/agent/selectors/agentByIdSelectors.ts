@@ -1,7 +1,12 @@
 import { DEFAULT_PROVIDER } from '@lobechat/business-const';
-import { DEFAULT_MODEL, DEFAUTT_AGENT_TTS_CONFIG } from '@lobechat/const';
+import { DEFAULT_MODEL } from '@lobechat/const';
 import { type AgentBuilderContext } from '@lobechat/context-engine';
-import { type AgentMode, type LobeAgentTTSConfig, type RuntimeEnvConfig } from '@lobechat/types';
+import {
+  type AgentMode,
+  type LobeAgentTTSConfig,
+  type RuntimeEnvConfig,
+  type UserTTSConfig,
+} from '@lobechat/types';
 
 import { type AgentStoreState } from '../initialState';
 import { agentSelectors } from './selectors';
@@ -34,7 +39,12 @@ const getAgentSystemRoleById =
 const getAgentTTSById =
   (agentId: string) =>
   (s: AgentStoreState): LobeAgentTTSConfig =>
-    agentSelectors.getAgentConfigById(agentId)(s)?.tts || DEFAUTT_AGENT_TTS_CONFIG;
+    agentSelectors.resolveAgentTTS(agentSelectors.getAgentConfigById(agentId)(s)?.tts);
+
+const getAgentTTSByIdWithGlobal =
+  (agentId: string, globalTTS?: UserTTSConfig) =>
+  (s: AgentStoreState): LobeAgentTTSConfig =>
+    agentSelectors.resolveAgentTTS(agentSelectors.getAgentConfigById(agentId)(s)?.tts, globalTTS);
 
 const getAgentFilesById = (agentId: string) => (s: AgentStoreState) =>
   agentSelectors.getAgentConfigById(agentId)(s)?.files || [];
@@ -135,6 +145,7 @@ export const agentByIdSelectors = {
   getAgentPluginsById,
   getAgentSystemRoleById,
   getAgentTTSById,
+  getAgentTTSByIdWithGlobal,
   getAgentWorkingDirectoryById,
   isAgentConfigLoadingById,
 };
