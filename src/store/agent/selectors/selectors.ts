@@ -144,7 +144,7 @@ const applySelectedVoiceToLegacyFields = (config: LobeAgentTTSConfig): LobeAgent
   if (!selectedVoice) return config;
 
   const nextVoice = { ...DEFAUTT_AGENT_TTS_CONFIG.voice, ...config.voice };
-  let nextOffline = config.offline;
+  let nextOffline = merge(DEFAUTT_AGENT_TTS_CONFIG.offline, config.offline);
 
   switch (selectedVoice.service) {
     case 'openai': {
@@ -161,7 +161,7 @@ const applySelectedVoiceToLegacyFields = (config: LobeAgentTTSConfig): LobeAgent
     }
     case 'offline': {
       nextOffline = {
-        ...config.offline,
+        ...nextOffline,
         fallbackVoice: selectedVoice.voiceId === 'offline-male' ? 'male' : 'female',
       };
       break;

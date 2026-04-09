@@ -11,6 +11,7 @@ const mockUseUserStore = vi.hoisted(() => {
 const mockUseAgentStore = vi.hoisted(() => vi.fn());
 const mockUseGlobalStore = vi.hoisted(() => vi.fn());
 const mockUseBusinessTTSProvider = vi.hoisted(() => vi.fn());
+const mockUseOfflineTTS = vi.hoisted(() => vi.fn());
 
 const mockUseOpenAITTS = vi.hoisted(() => vi.fn());
 const mockUseEdgeSpeech = vi.hoisted(() => vi.fn());
@@ -32,22 +33,26 @@ vi.mock('@/business/client/hooks/useBusinessTTSProvider', () => ({
   useBusinessTTSProvider: mockUseBusinessTTSProvider,
 }));
 
+vi.mock('@/hooks/useOfflineTTS', () => ({
+  useOfflineTTS: mockUseOfflineTTS,
+}));
+
 vi.mock('@/store/user/selectors', () => ({
   settingsSelectors: {
-    currentTTS: vi.fn((s) => s.tts),
+    currentTTS: vi.fn((s: any) => s.tts),
   },
 }));
 
 vi.mock('@/store/agent/selectors', () => ({
   agentSelectors: {
-    currentAgentTTSWithGlobal: vi.fn(() => (s) => s.tts),
-    currentAgentTTSVoiceWithGlobal: vi.fn(() => (s) => s.voice),
+    currentAgentTTSWithGlobal: vi.fn(() => (s: any) => s.tts),
+    currentAgentTTSVoiceWithGlobal: vi.fn(() => (s: any) => s.voice),
   },
 }));
 
 vi.mock('@/store/global/selectors', () => ({
   globalGeneralSelectors: {
-    currentLanguage: vi.fn((s) => s.language),
+    currentLanguage: vi.fn((s: any) => s.language),
   },
 }));
 
@@ -60,6 +65,14 @@ vi.mock('@lobehub/tts/react', () => ({
 describe('useTTS', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseOfflineTTS.mockReturnValue({
+      audio: undefined,
+      isGlobalLoading: false,
+      response: undefined,
+      setText: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+    });
   });
 
   it('should pass the resolved provider voice to onUpload', () => {
@@ -73,7 +86,14 @@ describe('useTTS', () => {
     );
     mockUseAgentStore.mockImplementation((selector) =>
       selector({
-        tts: { ttsService: 'openai' },
+        tts: {
+          offline: {
+            enabled: true,
+            fallbackVoice: 'female',
+            preferOfflineWhenUnavailable: true,
+          },
+          ttsService: 'openai',
+        },
         voice: 'nova',
       }),
     );
@@ -101,7 +121,17 @@ describe('useTTS', () => {
     expect(onUpload).toHaveBeenCalledWith('nova', []);
   });
 
-  it('should return a safe fallback when offline is selected', () => {
+  it('should route to offline hook when offline is selected', () => {
+    const offlineStart = vi.fn();
+    const offlineStop = vi.fn();
+    mockUseOfflineTTS.mockReturnValue({
+      audio: undefined,
+      isGlobalLoading: false,
+      response: undefined,
+      setText: vi.fn(),
+      start: offlineStart,
+      stop: offlineStop,
+    });
     mockUseUserStore.mockImplementation((selector) =>
       selector({
         tts: {
@@ -111,7 +141,14 @@ describe('useTTS', () => {
     );
     mockUseAgentStore.mockImplementation((selector) =>
       selector({
-        tts: { ttsService: 'offline' },
+        tts: {
+          offline: {
+            enabled: true,
+            fallbackVoice: 'female',
+            preferOfflineWhenUnavailable: true,
+          },
+          ttsService: 'offline',
+        },
         voice: 'alloy',
       }),
     );
@@ -124,9 +161,65 @@ describe('useTTS', () => {
 
     const { result } = renderHook(() => useTTS('hello'));
 
+    expect(mockUseOfflineTTS).toHaveBeenCalledWith('hello', 'offline-female');
     expect(result.current.isGlobalLoading).toBe(false);
-    expect(result.current.start()).toBeUndefined();
-    expect(result.current.stop()).toBeUndefined();
+    expect(result.current.start).toBe(offlineStart);
+    expect(result.current.stop).toBe(offlineStop);
+  });
+
+  it('should fallback to offline speech when online provider errors', () => {
+    const offlineStart = vi.fn();
+    mockUseOfflineTTS.mockReturnValue({
+      audio: undefined,
+      isGlobalLoading: false,
+      response: undefined,
+      setText: vi.fn(),
+      start: offlineStart,
+      stop: vi.fn(),
+    });
+    mockUseUserStore.mockImplementation((selector) =>
+      selector({
+        tts: {
+          openAI: { ttsModel: 'tts-1' },
+        },
+      }),
+    );
+    mockUseAgentStore.mockImplementation((selector) =>
+      selector({
+        tts: {
+          offline: {
+            enabled: true,
+            fallbackVoice: 'male',
+            preferOfflineWhenUnavailable: true,
+          },
+          ttsService: 'openai',
+        },
+        voice: 'alloy',
+      }),
+    );
+    mockUseGlobalStore.mockImplementation((selector) =>
+      selector({
+        language: 'en-US',
+      }),
+    );
+    mockUseBusinessTTSProvider.mockReturnValue('openai');
+    mockUseOpenAITTS.mockImplementation((_content, options) => {
+      options?.onError?.(new Error('network unavailable'));
+
+      return {
+        audio: undefined,
+        isGlobalLoading: false,
+        response: undefined,
+        setText: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+      };
+    });
+
+    renderHook(() => useTTS('hello'));
+
+    expect(mockUseOfflineTTS).toHaveBeenCalledWith('hello', 'offline-male');
+    expect(offlineStart).toHaveBeenCalled();
   });
 
   it('should support switching service across rerenders without throwing', () => {
@@ -139,7 +232,14 @@ describe('useTTS', () => {
     );
     mockUseAgentStore.mockImplementation((selector) =>
       selector({
-        tts: { ttsService: 'openai' },
+        tts: {
+          offline: {
+            enabled: true,
+            fallbackVoice: 'female',
+            preferOfflineWhenUnavailable: true,
+          },
+          ttsService: 'openai',
+        },
         voice: 'alloy',
       }),
     );
@@ -174,9 +274,12 @@ describe('useTTS', () => {
       stop: vi.fn(),
     });
 
-    const { rerender } = renderHook(({ server }) => useTTS('hello', { server }), {
-      initialProps: { server: 'openai' as const },
-    });
+    const { rerender } = renderHook(
+      ({ server }: { server: 'offline' | 'openai' }) => useTTS('hello', { server }),
+      {
+        initialProps: { server: 'openai' as const },
+      },
+    );
 
     expect(() => rerender({ server: 'offline' as const })).not.toThrow();
   });

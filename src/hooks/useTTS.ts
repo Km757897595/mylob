@@ -9,6 +9,7 @@ import { useEdgeSpeech, useMicrosoftSpeech, useOpenAITTS } from '@lobehub/tts/re
 import isEqual from 'fast-deep-equal';
 
 import { useBusinessTTSProvider } from '@/business/client/hooks/useBusinessTTSProvider';
+import { useOfflineTTS } from '@/hooks/useOfflineTTS';
 import { createHeaderWithOpenAI } from '@/services/_header';
 import { API_ENDPOINTS } from '@/services/_url';
 import { useAgentStore } from '@/store/agent';
@@ -36,6 +37,17 @@ export const useTTS = (content: string, config?: TTSConfig) => {
   const businessTTSProvider = useBusinessTTSProvider();
   const resolvedService = config?.server || ttsAgentSettings.ttsService;
   const resolvedVoice = config?.voice || voice;
+  const resolvedOfflineVoice =
+    config?.server === 'offline' && config?.voice
+      ? config.voice
+      : ttsAgentSettings.offline?.fallbackVoice === 'male'
+        ? 'offline-male'
+        : 'offline-female';
+  const shouldFallbackToOffline =
+    resolvedService !== 'offline' &&
+    ttsAgentSettings.offline?.enabled !== false &&
+    ttsAgentSettings.offline?.preferOfflineWhenUnavailable !== false;
+  const offlineTTS = useOfflineTTS(content, resolvedOfflineVoice);
 
   const openAIOptions = {
     api: {
@@ -69,38 +81,55 @@ export const useTTS = (content: string, config?: TTSConfig) => {
     },
   } as MicrosoftSpeechOptions;
 
+  const fallbackToOffline = () => {
+    if (!shouldFallbackToOffline) return;
+
+    offlineTTS.stop();
+    offlineTTS.start();
+  };
+  const handleError: NonNullable<TTSOptions['onError']> = (...args) => {
+    config?.onError?.(...args);
+    fallbackToOffline();
+  };
+  const handleErrorRetry: NonNullable<TTSOptions['onErrorRetry']> = (...args) => {
+    config?.onErrorRetry?.(...args);
+    fallbackToOffline();
+  };
+
   // Always call provider hooks in a stable order to avoid hook-order changes when service switches.
   const openAITTS = useOpenAITTS(content, {
     ...config,
     ...openAIOptions,
+    onError: handleError,
+    onErrorRetry: handleErrorRetry,
     onFinish: (arraybuffers) => {
+      config?.onFinish?.(arraybuffers);
       config?.onUpload?.(openAIOptions.options.voice || 'alloy', arraybuffers);
     },
   });
   const edgeTTS = useEdgeSpeech(content, {
     ...config,
     ...edgeOptions,
+    onError: handleError,
+    onErrorRetry: handleErrorRetry,
     onFinish: (arraybuffers) => {
+      config?.onFinish?.(arraybuffers);
       config?.onUpload?.(edgeOptions.options.voice || 'alloy', arraybuffers);
     },
   });
   const microsoftTTS = useMicrosoftSpeech(content, {
     ...config,
     ...microsoftOptions,
+    onError: handleError,
+    onErrorRetry: handleErrorRetry,
     onFinish: (arraybuffers) => {
+      config?.onFinish?.(arraybuffers);
       config?.onUpload?.(microsoftOptions.options.voice || 'alloy', arraybuffers);
     },
   });
 
   if (resolvedService === 'offline') {
-    return {
-      audio: undefined,
-      isGlobalLoading: false,
-      response: undefined,
-      setText: () => undefined,
-      start: () => undefined,
-      stop: () => undefined,
-    };
+    return offlineTTS;
   }
 
   switch (resolvedService) {
@@ -110,7 +139,6 @@ export const useTTS = (content: string, config?: TTSConfig) => {
     case 'microsoft': {
       return microsoftTTS;
     }
-    case 'openai':
     default: {
       return openAITTS;
     }

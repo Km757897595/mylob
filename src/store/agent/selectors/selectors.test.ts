@@ -7,7 +7,7 @@ import {
   DEFAUTT_AGENT_TTS_CONFIG,
   INBOX_SESSION_ID,
 } from '@lobechat/const';
-import { KnowledgeType } from '@lobechat/types';
+import { KnowledgeType, type UserTTSConfig } from '@lobechat/types';
 import { describe, expect, it, vi } from 'vitest';
 
 import { type AgentStoreState } from '@/store/agent/initialState';
@@ -400,7 +400,7 @@ describe('agentSelectors', () => {
           voiceId: 'edge-voice',
         },
         service: 'edge',
-      };
+      } as const satisfies UserTTSConfig;
       const tts = agentSelectors.resolveAgentTTS(
         { inheritGlobal: true, ttsService: 'openai', voice: { openai: 'nova' } } as any,
         globalTTS,

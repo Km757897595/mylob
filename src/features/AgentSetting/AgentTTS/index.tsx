@@ -1,81 +1,108 @@
 'use client';
 
 import { VoiceList } from '@lobehub/tts';
-import { type FormGroupItemType } from '@lobehub/ui';
+import type { FormGroupItemType } from '@lobehub/ui';
 import { Form, Select } from '@lobehub/ui';
 import { Switch } from 'antd';
 import isEqual from 'fast-deep-equal';
 import { Mic } from 'lucide-react';
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { FORM_STYLE } from '@/const/layoutTokens';
+import {
+  buildVoiceCatalog,
+  OfflineVoiceSettings,
+  VoiceCatalogPanel,
+} from '@/features/TTS/VoiceCatalog';
 import { useGlobalStore } from '@/store/global';
 import { globalGeneralSelectors } from '@/store/global/selectors';
+import { useUserStore } from '@/store/user';
+import { settingsSelectors } from '@/store/user/selectors';
+import { merge } from '@/utils/merge';
 
 import { selectors, useStore } from '../store';
-import { ttsOptions } from './options';
-import SelectWithTTSPreview from './SelectWithTTSPreview';
+import InheritedVoiceSummary from './InheritedVoiceSummary';
 
 const TTS_SETTING_KEY = 'tts';
-const { openaiVoiceOptions, localeOptions } = VoiceList;
+const { localeOptions } = VoiceList;
 
 const AgentTTS = memo(() => {
   const { t } = useTranslation('setting');
   const [form] = Form.useForm();
-  const voiceList = useGlobalStore((s) => {
-    const locale = globalGeneralSelectors.currentLanguage(s);
-    return (all?: boolean) => new VoiceList(all ? undefined : locale);
-  });
+  const lang = useGlobalStore(globalGeneralSelectors.currentLanguage);
+  const globalTTS = useUserStore(settingsSelectors.currentTTS, isEqual);
   const config = useStore(selectors.currentTtsConfig, isEqual);
   const updateConfig = useStore((s) => s.setAgentConfig);
+  const [draftConfig, setDraftConfig] = useState(config);
+  const catalog = useMemo(() => buildVoiceCatalog(lang), [lang]);
+  const isInherited = draftConfig.inheritGlobal !== false;
+  const effectiveSelection = isInherited ? globalTTS.selectedVoice : draftConfig.selectedVoice;
+  const effectiveOffline = isInherited ? globalTTS.offline : draftConfig.offline;
 
-  const { edgeVoiceOptions, microsoftVoiceOptions } = useMemo(
-    () => voiceList(config.showAllLocaleVoice),
-    [config.showAllLocaleVoice],
-  );
+  useEffect(() => {
+    setDraftConfig(config);
+  }, [config]);
 
   const tts: FormGroupItemType = {
     children: [
       {
-        children: <Select options={ttsOptions} />,
-        desc: t('settingTTS.ttsService.desc'),
-        label: t('settingTTS.ttsService.title'),
-        name: [TTS_SETTING_KEY, 'ttsService'],
-      },
-      {
         children: <Switch />,
-        desc: t('settingTTS.showAllLocaleVoice.desc'),
-        hidden: config.ttsService === 'openai',
-        label: t('settingTTS.showAllLocaleVoice.title'),
+        label: t('settingTTS.catalog.inherit'),
         layout: 'horizontal',
         minWidth: undefined,
-        name: [TTS_SETTING_KEY, 'showAllLocaleVoice'],
+        name: 'inheritGlobal',
         valuePropName: 'checked',
       },
-      {
-        children: <SelectWithTTSPreview options={openaiVoiceOptions} server={'openai'} />,
-        desc: t('settingTTS.voice.desc'),
-        hidden: config.ttsService !== 'openai',
-        label: t('settingTTS.voice.title'),
-        name: [TTS_SETTING_KEY, 'voice', 'openai'],
-      },
-      {
-        children: <SelectWithTTSPreview options={edgeVoiceOptions} server={'edge'} />,
-        desc: t('settingTTS.voice.desc'),
-        divider: false,
-        hidden: config.ttsService !== 'edge',
-        label: t('settingTTS.voice.title'),
-        name: [TTS_SETTING_KEY, 'voice', 'edge'],
-      },
-      {
-        children: <SelectWithTTSPreview options={microsoftVoiceOptions} server={'microsoft'} />,
-        desc: t('settingTTS.voice.desc'),
-        divider: false,
-        hidden: config.ttsService !== 'microsoft',
-        label: t('settingTTS.voice.title'),
-        name: [TTS_SETTING_KEY, 'voice', 'microsoft'],
-      },
+      ...(isInherited
+        ? [
+            {
+              children: (
+                <InheritedVoiceSummary
+                  offline={globalTTS.offline}
+                  selectedVoice={globalTTS.selectedVoice}
+                />
+              ),
+              label: t('settingTTS.catalog.title'),
+            },
+          ]
+        : [
+            {
+              children: (
+                <VoiceCatalogPanel
+                  catalog={catalog}
+                  selectedVoice={effectiveSelection}
+                  onSelect={(selectedVoice) => {
+                    form.setFieldsValue({
+                      selectedVoice,
+                    });
+                    setDraftConfig((state) =>
+                      merge(state, {
+                        selectedVoice,
+                      }),
+                    );
+                  }}
+                />
+              ),
+              label: t('settingTTS.catalog.title'),
+            },
+            {
+              children: (
+                <OfflineVoiceSettings
+                  value={effectiveOffline}
+                  onChange={(offline) => {
+                    form.setFieldsValue({ offline });
+                    setDraftConfig((state) =>
+                      merge(state, {
+                        offline,
+                      }),
+                    );
+                  }}
+                />
+              ),
+              label: t('settingTTS.offline.title'),
+            },
+          ]),
       {
         children: (
           <Select
@@ -87,7 +114,7 @@ const AgentTTS = memo(() => {
         ),
         desc: t('settingTTS.sttLocale.desc'),
         label: t('settingTTS.sttLocale.title'),
-        name: [TTS_SETTING_KEY, 'sttLocale'],
+        name: 'sttLocale',
       },
     ],
     icon: Mic,
@@ -96,15 +123,19 @@ const AgentTTS = memo(() => {
 
   return (
     <Form
-      footer={<Form.SubmitFooter />}
       form={form}
+      initialValues={config}
       items={[tts]}
       itemsType={'group'}
       variant={'borderless'}
-      initialValues={{
-        [TTS_SETTING_KEY]: config,
+      onValuesChange={async (_, values) => {
+        const nextConfig = merge(config, values);
+        setDraftConfig(nextConfig);
+
+        await updateConfig({
+          [TTS_SETTING_KEY]: nextConfig,
+        });
       }}
-      onFinish={updateConfig}
       {...FORM_STYLE}
     />
   );

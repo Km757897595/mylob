@@ -35,3 +35,22 @@ export const sttOptions: SelectProps['options'] = [
     value: 'browser',
   },
 ];
+
+export const ttsServiceOptions: SelectProps['options'] = [
+  {
+    label: 'OpenAI',
+    value: 'openai',
+  },
+  {
+    label: 'Edge Speech',
+    value: 'edge',
+  },
+  {
+    label: 'Microsoft Speech',
+    value: 'microsoft',
+  },
+  {
+    label: 'Offline',
+    value: 'offline',
+  },
+];
