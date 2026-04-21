@@ -27,11 +27,23 @@ interface AgentTemplateManifest {
   agents: AgentTemplate[];
 }
 
-const readDefaultAgentTemplates = async () => {
-  const raw = await readFile(DEFAULT_AGENT_TEMPLATES_PATH, 'utf8');
-  const parsed = JSON.parse(raw) as AgentTemplateManifest;
+let defaultAgentTemplatesPromise: Promise<AgentTemplate[]> | undefined;
 
-  return parsed.agents;
+const readDefaultAgentTemplates = async () => {
+  if (!defaultAgentTemplatesPromise) {
+    defaultAgentTemplatesPromise = readFile(DEFAULT_AGENT_TEMPLATES_PATH, 'utf8')
+      .then((raw) => {
+        const parsed = JSON.parse(raw) as AgentTemplateManifest;
+
+        return parsed.agents;
+      })
+      .catch((error) => {
+        defaultAgentTemplatesPromise = undefined;
+        throw error;
+      });
+  }
+
+  return defaultAgentTemplatesPromise;
 };
 
 export const seedDefaultAgentTemplates = async (db: LobeChatDatabase, userId: string) => {

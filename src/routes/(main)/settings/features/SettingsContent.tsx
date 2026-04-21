@@ -14,7 +14,6 @@ const REDIRECT_MAP: Record<string, string> = {
   [SettingsTabs.Common]: SettingsTabs.Appearance,
   [SettingsTabs.ChatAppearance]: SettingsTabs.Appearance,
   [SettingsTabs.Agent]: SettingsTabs.ServiceModel,
-  [SettingsTabs.TTS]: SettingsTabs.ServiceModel,
   [SettingsTabs.Image]: SettingsTabs.ServiceModel,
 };
 

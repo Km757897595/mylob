@@ -1,0 +1,158 @@
+<h2>语音交互服务配置</h2>
+<p class="subtitle">混合模式：统一浏览声纹库，切换服务后自动收窄为当前服务可用声音；全局默认值可被 Agent 覆盖。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">A. 全局设置页</div>
+    <div class="mockup-body">
+      <div style="display:grid;gap:16px">
+        <div style="padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--panel)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <strong>TTS 服务</strong>
+            <span style="font-size:12px;color:var(--muted)">默认服务</span>
+          </div>
+          <div class="options">
+            <div class="option selected" data-choice="openai">
+              <div class="letter">O</div>
+              <div class="content">
+                <h3>OpenAI</h3>
+                <p>云端高质量合成，支持模型配置</p>
+              </div>
+            </div>
+            <div class="option" data-choice="edge">
+              <div class="letter">E</div>
+              <div class="content">
+                <h3>Edge</h3>
+                <p>浏览器语音源，声音库较广</p>
+              </div>
+            </div>
+            <div class="option" data-choice="microsoft">
+              <div class="letter">M</div>
+              <div class="content">
+                <h3>Microsoft</h3>
+                <p>云端语音服务，企业化接入</p>
+              </div>
+            </div>
+            <div class="option" data-choice="offline">
+              <div class="letter">L</div>
+              <div class="content">
+                <h3>Offline</h3>
+                <p>本地离线兜底，提供男声 / 女声</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--panel)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong>统一声纹库</strong>
+            <span style="font-size:12px;color:var(--muted)">服务切换后自动过滤</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <span style="padding:6px 10px;border-radius:999px;background:#e8f3ff;color:#155eef;font-size:12px">性别: 女声</span>
+            <span style="padding:6px 10px;border-radius:999px;background:#fff4e5;color:#b54708;font-size:12px">音色: 温暖</span>
+            <span style="padding:6px 10px;border-radius:999px;background:#f4f3ff;color:#5925dc;font-size:12px">语言风格: 中文客服</span>
+            <span style="padding:6px 10px;border-radius:999px;background:#f2f4f7;color:#344054;font-size:12px">语言: zh-CN</span>
+          </div>
+          <div class="cards">
+            <div class="card selected" data-choice="voice-1">
+              <div class="card-image" style="padding:18px;background:linear-gradient(135deg,#fff1f3,#ffe4e8);min-height:120px">
+                <div style="font-size:13px;color:#ad2b5a">OpenAI</div>
+                <div style="font-size:22px;font-weight:700;margin:8px 0 10px">Nova</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">女声</span>
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">温暖</span>
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">自然</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <h3>默认推荐</h3>
+                <p>支持试听，适合对话助手场景</p>
+              </div>
+            </div>
+            <div class="card" data-choice="voice-2">
+              <div class="card-image" style="padding:18px;background:linear-gradient(135deg,#eff8ff,#d1e9ff);min-height:120px">
+                <div style="font-size:13px;color:#175cd3">Edge</div>
+                <div style="font-size:22px;font-weight:700;margin:8px 0 10px">Yunxi</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">男声</span>
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">清亮</span>
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">中文播报</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <h3>浏览器可用</h3>
+                <p>适合作为低门槛默认备选</p>
+              </div>
+            </div>
+            <div class="card" data-choice="voice-3">
+              <div class="card-image" style="padding:18px;background:linear-gradient(135deg,#ecfdf3,#d1fadf);min-height:120px">
+                <div style="font-size:13px;color:#027a48">Offline</div>
+                <div style="font-size:22px;font-weight:700;margin:8px 0 10px">本地男声 / 本地女声</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">离线</span>
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">兜底</span>
+                  <span style="padding:4px 8px;border-radius:999px;background:white;font-size:12px">双声源</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <h3>本地可播报</h3>
+                <p>在线服务不可用时自动切换</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">B. Agent 设置页</div>
+    <div class="mockup-body">
+      <div style="display:grid;gap:16px">
+        <div style="padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--panel)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>继承全局默认</strong>
+            <span style="padding:4px 8px;border-radius:999px;background:#ecfdf3;color:#027a48;font-size:12px">当前开启</span>
+          </div>
+          <p style="margin:10px 0 0;color:var(--muted);font-size:13px">默认使用全局 TTS 服务、默认声纹和离线兜底策略；关闭后可为当前 Agent 单独覆盖。</p>
+        </div>
+
+        <div style="padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--panel)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong>当前生效语音</strong>
+            <span style="font-size:12px;color:var(--muted)">来源：Agent 覆盖</span>
+          </div>
+          <div class="options">
+            <div class="option selected">
+              <div class="letter">1</div>
+              <div class="content">
+                <h3>主语音</h3>
+                <p>Microsoft / Xiaoxiao / 女声 / 温暖 / 中文客服</p>
+              </div>
+            </div>
+            <div class="option">
+              <div class="letter">2</div>
+              <div class="content">
+                <h3>离线兜底</h3>
+                <p>本地女声，离线或服务失败时启用</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--panel)">
+          <strong>实时试听</strong>
+          <p style="margin:10px 0 12px;color:var(--muted);font-size:13px">点击卡片内播放按钮试听；切换服务、声纹或离线模式后立即更新试听内容。</p>
+          <div style="display:flex;gap:10px;align-items:center">
+            <div style="width:42px;height:42px;border-radius:50%;background:#111827;color:white;display:flex;align-items:center;justify-content:center;font-weight:700">▶</div>
+            <div style="flex:1;height:10px;border-radius:999px;background:#e4e7ec;overflow:hidden">
+              <div style="width:46%;height:100%;background:linear-gradient(90deg,#f97066,#f79009)"></div>
+            </div>
+            <span style="font-size:12px;color:var(--muted)">00:07</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

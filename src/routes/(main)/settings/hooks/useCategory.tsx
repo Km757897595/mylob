@@ -14,6 +14,7 @@ import {
   KeyboardIcon,
   KeyIcon,
   Map,
+  Mic2,
   PaletteIcon,
   ShieldCheck,
   Sparkles,
@@ -153,6 +154,11 @@ export const useCategory = () => {
         icon: BrainCircuit,
         key: SettingsTabs.Memory,
         label: t('tab.memory'),
+      },
+      {
+        icon: Mic2,
+        key: SettingsTabs.TTS,
+        label: t('tab.tts'),
       },
       showApiKeyManage && {
         icon: KeyIcon,

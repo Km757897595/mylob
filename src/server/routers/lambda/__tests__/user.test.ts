@@ -6,6 +6,7 @@ import { SessionModel } from '@/database/models/session';
 import { UserModel } from '@/database/models/user';
 import { serverDB } from '@/database/server';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
+import { seedDefaultAgentTemplates } from '@/server/services/user/defaultAgentTemplates';
 
 import { userRouter } from '../user';
 
@@ -20,6 +21,7 @@ vi.mock('@/database/models/user');
 vi.mock('@/server/modules/KeyVaultsEncrypt');
 vi.mock('@/server/modules/S3');
 vi.mock('@/server/services/user');
+vi.mock('@/server/services/user/defaultAgentTemplates');
 
 describe('userRouter', () => {
   const mockUserId = 'test-user-id';
@@ -105,6 +107,7 @@ describe('userRouter', () => {
 
       const result = await userRouter.createCaller({ ...mockCtx }).getUserState();
 
+      expect(seedDefaultAgentTemplates).toHaveBeenCalledWith(serverDB, mockUserId);
       expect(result).toMatchObject({
         isOnboard: true,
         preference: { telemetry: true },

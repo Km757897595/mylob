@@ -1,7 +1,8 @@
 'use client';
 
-import { Button } from '@lobehub/ui';
-import { memo, useEffect, useState } from 'react';
+import { ActionIcon, Tooltip } from '@lobehub/ui';
+import { Loader2, Pause, Play } from 'lucide-react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useTTS } from '@/hooks/useTTS';
@@ -28,23 +29,30 @@ const VoicePreviewButton = memo(({ selection }: VoicePreviewButtonProps) => {
     if (!isGlobalLoading) setIsPlaying(false);
   }, [isGlobalLoading]);
 
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+
+      if (isPlaying) {
+        stop();
+        setIsPlaying(false);
+        return;
+      }
+
+      start();
+      setIsPlaying(true);
+    },
+    [isPlaying, start, stop],
+  );
+
   if (!selection) return null;
 
-  const togglePlay = () => {
-    if (isPlaying) {
-      stop();
-      setIsPlaying(false);
-      return;
-    }
-
-    start();
-    setIsPlaying(true);
-  };
+  const icon = isGlobalLoading ? Loader2 : isPlaying ? Pause : Play;
 
   return (
-    <Button loading={isGlobalLoading} size={'small'} onClick={togglePlay}>
-      {t('settingTTS.voice.preview')}
-    </Button>
+    <Tooltip title={t('settingTTS.voice.preview')}>
+      <ActionIcon icon={icon} loading={isGlobalLoading} size={'small'} onClick={handleClick} />
+    </Tooltip>
   );
 });
 

@@ -688,6 +688,7 @@ export default {
   'settingTTS.submit': 'Update Voice Service',
   'settingTTS.title': 'Speech Service',
   'settingTTS.catalog.gender': 'Gender',
+  'settingTTS.catalog.clearFilters': 'Clear Filters',
   'settingTTS.catalog.empty': 'No voices match the current filters',
   'settingTTS.catalog.inherit': 'Inherit Global Voice Settings',
   'settingTTS.catalog.locale': 'Language',
@@ -696,7 +697,10 @@ export default {
   'settingTTS.catalog.timbre': 'Timbre',
   'settingTTS.catalog.title': 'Voice Library',
   'settingTTS.offline.autoFallback': 'Auto fallback when online voice is unavailable',
+  'settingTTS.offline.autoFallbackDesc':
+    'Automatically switch to offline voice when online service fails',
   'settingTTS.offline.defaultVoice': 'Default offline voice',
+  'settingTTS.offline.disabled': 'Disabled',
   'settingTTS.offline.enabled': 'Enable offline voice',
   'settingTTS.offline.female': 'Offline Female Voice',
   'settingTTS.offline.male': 'Offline Male Voice',

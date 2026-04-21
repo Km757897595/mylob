@@ -25,6 +25,7 @@ import { serverDatabase } from '@/libs/trpc/lambda/middleware';
 import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 import { FileS3 } from '@/server/modules/S3';
 import { FileService } from '@/server/services/file';
+import { seedDefaultAgentTemplates } from '@/server/services/user/defaultAgentTemplates';
 
 const usernameSchema = z
   .string()
@@ -69,6 +70,12 @@ export const userRouter = router({
     // For desktop mode, ensure user exists before getting state
     if (isDesktop) {
       await UserModel.makeSureUserExist(ctx.serverDB, ctx.userId);
+    }
+
+    try {
+      await seedDefaultAgentTemplates(ctx.serverDB, ctx.userId);
+    } catch (error) {
+      console.error('Failed to ensure default agent templates during user state init:', error);
     }
 
     // Run user state fetch and count queries in parallel

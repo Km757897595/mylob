@@ -19,6 +19,9 @@ export const componentMap = {
   [SettingsTabs.ServiceModel]: dynamic(() => import('../service-model'), {
     loading: loading('Settings > ServiceModel'),
   }),
+  [SettingsTabs.TTS]: dynamic(() => import('../tts'), {
+    loading: loading('Settings > TTS'),
+  }),
   [SettingsTabs.Memory]: dynamic(() => import('../memory'), {
     loading: loading('Settings > Memory'),
   }),
