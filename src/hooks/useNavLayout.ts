@@ -92,14 +92,12 @@ export const useNavLayout = (): NavLayout => {
             url: '/image',
           },
           {
-            devOnly: true,
             icon: getRouteById('video-edit')!.icon,
             key: SidebarTabKey.VideoEdit,
             title: t('tab.videoEdit'),
             url: '/video-edit',
           },
           {
-            devOnly: true,
             icon: getRouteById('speech')!.icon,
             key: SidebarTabKey.Speech,
             title: t('tab.speech'),

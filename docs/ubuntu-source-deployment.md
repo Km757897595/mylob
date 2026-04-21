@@ -416,7 +416,180 @@ pnpm exec tsx scripts/init-super-admin.ts userId 例： < 你的 > user_6UlqPlBG
 
 ---
 
-## 11. 常见问题
+## 11. 源码更新后重新部署
+
+根据改了什么文件，走不同强度的更新流程。能走「轻量」就别走「完整」，省时间。
+
+### 11.1 决策速查
+
+| 本次改了什么                                                                             | 操作强度 |
+| ---------------------------------------------------------------------------------------- | -------- |
+| 只改 `.env.production`（非 `NEXT_PUBLIC_*`）                                             | L0 重启  |
+| 改了 `src/**` / `packages/**` / `public/**` 下的 ts /tsx/vue / 样式                      | L1 标准  |
+| 新增或改了依赖（`package.json` / `pnpm-lock.yaml` / `patches/`）                         | L2 装包  |
+| 改了数据库（`packages/database/migrations/**` 新增 SQL）                                 | L3 迁移  |
+| 动到 `apps/desktop/**` / 改 `NEXT_PUBLIC_*` 并需要打进前端 / `Dockerfile` / 构建脚本改动 | L4 清构  |
+
+### 11.2 L0：只改配置（最常用）
+
+```bash
+sudo systemctl restart lobe
+sudo journalctl -u lobe -n 50 --no-pager
+```
+
+改 `.env.production` 的 99% 场景都只需要这一步。不影响浏览器缓存的话无需硬刷。
+
+### 11.3 L1：标准更新（只改源码，未动依赖）
+
+```bash
+cd /opt/lobe/mylob
+
+# 1) 备份数据库（能避掉 90% 的事故）
+docker exec lobe-postgres pg_dump -U postgres lobechat \
+  > /opt/lobe/backup-$(date +%F-%H%M).sql
+
+# 2) 拉代码
+git fetch --all
+git log --oneline HEAD..origin/$(git rev-parse --abbrev-ref HEAD) | head -20 # 看看有哪些提交
+git pull --ff-only
+
+# 3) 重新构建
+export NODE_OPTIONS=--max-old-space-size=8192
+pnpm run build:docker
+
+# 4) 重启
+sudo systemctl restart lobe
+sudo journalctl -u lobe -f
+```
+
+> 看到 `ready - started server on 0.0.0.0:3210` 即可。
+
+### 11.4 L2：依赖变动（`package.json` /lockfile 改了）
+
+在 L1 基础上多一步 `pnpm install`：
+
+```bash
+cd /opt/lobe/mylob
+
+docker exec lobe-postgres pg_dump -U postgres lobechat \
+  > /opt/lobe/backup-$(date +%F-%H%M).sql
+
+git pull --ff-only
+
+# 关键：装依赖
+pnpm install --prefer-offline
+
+# 若 lexical / pdfjs-dist / drizzle-orm 等 overrides 涉及的包升级过，校验只有一个副本
+pnpm ls lexical -r --depth=Infinity 2> /dev/null | grep -oE 'lexical [0-9.]+' | sort -u
+# 期望只有一行：lexical 0.39.0（以 package.json overrides 为准）
+
+export NODE_OPTIONS=--max-old-space-size=8192
+pnpm run build:docker
+sudo systemctl restart lobe
+```
+
+### 11.5 L3：带数据库迁移（最容易翻车，严格按顺序）
+
+步骤：**备份 → 拉代码 → 装依赖 → 构建 → 迁移 → 重启**。迁移一定要在新构建**之后、服务重启之前**跑。
+
+```bash
+cd /opt/lobe/mylob
+
+# 1) 强制备份！
+docker exec lobe-postgres pg_dump -U postgres lobechat \
+  > /opt/lobe/backup-$(date +%F-%H%M).sql
+
+# 2) 停服务避免并发写
+sudo systemctl stop lobe
+
+# 3) 拉代码 / 装包 / 构建
+git pull --ff-only
+pnpm install --prefer-offline
+export NODE_OPTIONS=--max-old-space-size=8192
+pnpm run build:docker
+
+# 4) 执行迁移（幂等，已跑过的会自动跳过）
+set -a && source .env.production && set +a
+pnpm db:migrate
+
+# 5) 重启
+sudo systemctl start lobe
+sudo journalctl -u lobe -f
+```
+
+迁移失败时：
+
+```bash
+# 看迁移状态
+docker exec -it lobe-postgres psql -U postgres -d lobechat \
+  -c "SELECT hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 10;"
+
+# 回滚到备份（谨慎！会丢失上次备份之后的数据）
+cat /opt/lobe/backup-YYYY-MM-DD-HHMM.sql | docker exec -i lobe-postgres psql -U postgres -d lobechat
+```
+
+### 11.6 L4：彻底清构重建（前述方式无效 / 出现诡异编译缓存问题 / 改了 Next/Vite 配置）
+
+```bash
+cd /opt/lobe/mylob
+
+docker exec lobe-postgres pg_dump -U postgres lobechat \
+  > /opt/lobe/backup-$(date +%F-%H%M).sql
+
+sudo systemctl stop lobe
+
+git pull --ff-only
+
+# 清掉所有缓存
+rm -rf .next public/spa
+pnpm -r exec rm -rf node_modules
+rm -rf node_modules apps/desktop/node_modules
+# 若怀疑 lockfile 也有问题：
+# cp pnpm-lock.yaml pnpm-lock.yaml.bak && rm pnpm-lock.yaml
+
+pnpm install
+
+# 校验 overrides 生效（单副本）
+pnpm ls lexical -r --depth=Infinity 2> /dev/null | grep -oE 'lexical [0-9.]+' | sort -u
+
+export NODE_OPTIONS=--max-old-space-size=8192
+pnpm run build:docker
+
+set -a && source .env.production && set +a
+pnpm db:migrate
+
+sudo systemctl start lobe
+```
+
+### 11.7 更新后客户端必做
+
+应用日志 OK ≠ 浏览器能看到最新版，PWA / Service Worker 会缓存旧资源：
+
+```
+浏览器打开演示页
+→ F12 → Application → Service Workers → Unregister
+→ F12 → Application → Storage → Clear site data
+→ Ctrl + Shift + R 硬刷
+```
+
+### 11.8 回滚
+
+```bash
+cd /opt/lobe/mylob
+git log --oneline -20
+
+# 回到某个 commit（举例）
+git reset --hard <commit_sha>
+
+# 代码回滚后仍要重新构建 / 视情况迁移（若上次有 schema 变化则先恢复数据库备份）
+pnpm install --prefer-offline
+pnpm run build:docker
+sudo systemctl restart lobe
+```
+
+---
+
+## 12. 常见问题
 
 1. **打不开 `http://localhost:3210`**：
 
@@ -428,6 +601,8 @@ pnpm exec tsx scripts/init-super-admin.ts userId 例： < 你的 > user_6UlqPlBG
 4. **脚本报 `找不到 admin 角色`**：说明 `pnpm db:migrate` 还没跑或 `rbac_management` 未开启；检查 `.env.production` 里的 `FEATURE_FLAGS` 后重跑迁移。
 5. **想再切回 dev 联调**：直接 `pnpm dev`（读 `.env` + `.env.local`）即可，不影响已部署的生产实例（它跑 `next start` 读 `.env.production`）。
 6. **升级超管后仍看不到菜单**：退出重登一次，或清一下浏览器 Cookie；权限缓存在会话里。
+7. **更新后前端报 `ActionTagNode does not subclass LexicalNode`**：`@lexical/*` 出现多副本；执行 L4 彻底清构重建，并检查 `pnpm ls lexical -r` 只剩一个版本。
+8. **图片链接仍是 `localhost`**：`S3_PUBLIC_DOMAIN` 才是浏览器看到的域名；`S3_ENDPOINT` 是服务端内部地址。改完二者，`systemctl restart lobe` + 清 Service Worker 即可；旧文件的历史 URL 不会自动改写。
 
 ---
 
