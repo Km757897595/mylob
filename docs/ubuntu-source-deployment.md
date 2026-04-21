@@ -2,7 +2,7 @@
 
 面向一台**本地演示用的 Ubuntu 电脑**：只在这台机器上用浏览器访问，不对外开放、不需要公网 IP、不需要 HTTPS。为了和「本地开发环境能跑通」保持一致，本文尽量沿用仓库根目录下 `.env` / `.env.local` 的配置值，只把 `dev` 启动改成 `next start` 生产模式。
 
-> 后面如果需要局域网其他设备访问或公网域名 + HTTPS，再参考 [`deployment-guide.md`](./deployment-guide.md)。
+> 后面如果需要局域网其他设备访问或公网域名 + HTTPS，再参考 `[deployment-guide.md](./deployment-guide.md)`。
 
 ---
 
@@ -10,7 +10,7 @@
 
 - 一台 Ubuntu 电脑，演示时**只在本机浏览器**打开 `http://localhost:3210`
 - 本机同时跑：LobeHub 应用 + PostgreSQL + Redis + RustFS + SearXNG
-- `FEATURE_FLAGS` 保持与 `.env` 相同（ai_image /speech_to_text/knowledge_base /rbac_management/user_groups 等）
+- `FEATURE_FLAGS` 保持与 `.env` 相同（ai_image /speech_to_text/knowledge_base/rbac_management/user_groups 等）
 
 ```
 本机浏览器 ──►  http://localhost:3210  ──►  LobeHub (next start)
@@ -352,8 +352,7 @@ docker exec -it lobe-postgres psql -U postgres -d lobechat -c \
 cd /opt/lobe/mylob
 set -a && source .env.production && set +a
 
-pnpm exec tsx scripts/init-super-admin.ts <你的 userId>
-# 例：
+pnpm exec tsx scripts/init-super-admin.ts userId 例： < 你的 > user_6UlqPlBGlUGXM2S3QJ0rbbzyDCk#
 # pnpm exec tsx scripts/init-super-admin.ts user_2gF...kCz
 ```
 
@@ -420,8 +419,10 @@ pnpm exec tsx scripts/init-super-admin.ts <你的 userId>
 ## 11. 常见问题
 
 1. **打不开 `http://localhost:3210`**：
-   - `ss -tlnp | grep 3210` 看是否在监听
-   - `sudo journalctl -u lobe -n 100` 查启动日志
+
+- `ss -tlnp | grep 3210` 看是否在监听
+- `sudo journalctl -u lobe -n 100` 查启动日志
+
 2. **知识库报 `extension "vector" is not available`**：确认用的是 ParadeDB 镜像；必要时 `docker exec -it lobe-postgres psql -U postgres -d lobechat -c 'CREATE EXTENSION IF NOT EXISTS vector;'`
 3. **构建 OOM**：加 swap 或把 `NODE_OPTIONS=--max-old-space-size` 调小到 6144；实在不行在开发机打包完再 `rsync .next public/spa packages/database/migrations` 过来。
 4. **脚本报 `找不到 admin 角色`**：说明 `pnpm db:migrate` 还没跑或 `rbac_management` 未开启；检查 `.env.production` 里的 `FEATURE_FLAGS` 后重跑迁移。
