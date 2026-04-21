@@ -1,0 +1,20 @@
+{
+  "config.prompt.label": "编辑提示词",
+  "config.prompt.placeholder": "描述如何编辑视频",
+  "config.referenceImages.label": "参考图片（可选，最多 4 张）",
+  "config.resolution.label": "输出分辨率",
+  "config.videoUrl.label": "源视频",
+  "task.download": "下载视频",
+  "task.failed": "视频编辑失败",
+  "task.networkError": "网络错误，请重试",
+  "task.processing": "编辑中，请稍候...",
+  "task.submitError": "提交编辑任务失败",
+  "task.succeeded": "编辑完成",
+  "upload.clickOrDrag": "点击或拖拽文件上传",
+  "upload.maxSize": "最大 {{size}}MB",
+  "upload.reading": "读取文件中...",
+  "upload.uploading": "上传中...",
+  "workspace.editButton": "开始编辑",
+  "workspace.emptyHint": "上传源视频并填写提示词后，点击「开始编辑」",
+  "workspace.title": "视频编辑"
+}

@@ -496,7 +496,9 @@ export default {
   'tab.resource': 'Resources',
   'tab.search': 'Search',
   'tab.setting': 'Settings',
+  'tab.speech': 'Speech',
   'tab.video': 'Video',
+  'tab.videoEdit': 'Video Edit',
   'telemetry.allow': 'Allow',
   'telemetry.deny': 'Deny',
   'telemetry.desc':

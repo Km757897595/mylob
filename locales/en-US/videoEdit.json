@@ -1,0 +1,20 @@
+{
+  "config.prompt.label": "Edit Prompt",
+  "config.prompt.placeholder": "Describe how to edit the video",
+  "config.referenceImages.label": "Reference Images (optional, up to 4)",
+  "config.resolution.label": "Output Resolution",
+  "config.videoUrl.label": "Source Video",
+  "task.download": "Download Video",
+  "task.failed": "Video editing failed",
+  "task.networkError": "Network error, please try again",
+  "task.processing": "Editing in progress, please wait...",
+  "task.submitError": "Failed to submit editing task",
+  "task.succeeded": "Editing complete",
+  "upload.clickOrDrag": "Click or drag file to upload",
+  "upload.maxSize": "Max size: {{size}}MB",
+  "upload.reading": "Reading file...",
+  "upload.uploading": "Uploading...",
+  "workspace.editButton": "Edit Video",
+  "workspace.emptyHint": "Upload source video and fill in the prompt, then click Edit Video",
+  "workspace.title": "Video Edit"
+}

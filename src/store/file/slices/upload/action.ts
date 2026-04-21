@@ -103,16 +103,21 @@ export class FileUploadActionImpl {
       const checkStatus = await fileService.checkFileHash(hash);
       let metadata: FileMetadata;
 
-      // 3. if file exist, just skip upload
-      if (checkStatus.isExist) {
-        metadata = checkStatus.metadata as FileMetadata;
+      // 3. if file exists AND has a usable metadata path, skip upload.
+      //    If metadata is missing, the existing global_files row is incomplete
+      //    (or points at a deleted S3 object); re-upload so the new url is persisted.
+      const existingMetadata = checkStatus.isExist
+        ? (checkStatus.metadata as FileMetadata | null | undefined)
+        : undefined;
+      if (checkStatus.isExist && existingMetadata?.path) {
+        metadata = existingMetadata;
         onStatusUpdate?.({
           id: file.name,
           type: 'updateFile',
           value: { status: 'processing', uploadState: { progress: 100, restTime: 0, speed: 0 } },
         });
       }
-      // 3. if file don't exist, need upload files
+      // 3. if file doesn't exist or dedupe entry is unusable, upload it
       else {
         const { data, success } = await uploadService.uploadFileToS3(file, {
           abortController,
@@ -161,7 +166,7 @@ export class FileUploadActionImpl {
           parentId,
           size: file.size,
           source,
-          url: metadata.path || checkStatus.url,
+          url: metadata.path,
         },
         knowledgeBaseId,
       );

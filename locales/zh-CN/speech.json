@@ -1,0 +1,11 @@
+{
+  "config.language.label": "识别语言",
+  "workspace.emptyHint": "点击「开始录音」并说话，转录结果会显示在这里",
+  "workspace.micError": "无法访问麦克风，请检查浏览器权限",
+  "workspace.processing": "识别中...",
+  "workspace.recording": "录音中",
+  "workspace.startButton": "开始录音",
+  "workspace.stopButton": "停止录音",
+  "workspace.title": "实时语音识别",
+  "workspace.transcriptLabel": "转录结果"
+}

@@ -459,6 +459,41 @@ export const desktopRoutes: RouteObject[] = [
         path: 'image',
       },
 
+      // Video Edit routes
+      {
+        children: [
+          {
+            element: dynamicElement(
+              () => import('@/routes/(main)/video-edit'),
+              'Desktop > VideoEdit',
+            ),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/video-edit/_layout'),
+          'Desktop > VideoEdit > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/video-edit" />,
+        path: 'video-edit',
+      },
+
+      // Speech routes
+      {
+        children: [
+          {
+            element: dynamicElement(() => import('@/routes/(main)/speech'), 'Desktop > Speech'),
+            index: true,
+          },
+        ],
+        element: dynamicLayout(
+          () => import('@/routes/(main)/speech/_layout'),
+          'Desktop > Speech > Layout',
+        ),
+        errorElement: <ErrorBoundary resetPath="/speech" />,
+        path: 'speech',
+      },
+
       ...BusinessDesktopRoutesWithMainLayout,
 
       // Eval routes

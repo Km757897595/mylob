@@ -32,6 +32,7 @@ import portal from './portal';
 import providers from './providers';
 import ragEval from './ragEval';
 import setting from './setting';
+import speech from './speech';
 import spend from './spend';
 import subscription from './subscription';
 import suggestQuestions from './suggestQuestions';
@@ -41,6 +42,7 @@ import topic from './topic';
 import ui from './ui';
 import userGroup from './userGroup';
 import video from './video';
+import videoEdit from './videoEdit';
 import welcome from './welcome';
 
 const resources = {
@@ -88,7 +90,9 @@ const resources = {
   topic,
   ui,
   userGroup,
+  speech,
   video,
+  videoEdit,
   welcome,
 } as const;
 

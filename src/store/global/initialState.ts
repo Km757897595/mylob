@@ -17,7 +17,9 @@ export enum SidebarTabKey {
   Pages = 'pages',
   Resource = 'resource',
   Setting = 'settings',
+  Speech = 'speech',
   Video = 'video',
+  VideoEdit = 'video-edit',
 }
 
 export enum ChatSettingsTabs {

@@ -4,9 +4,11 @@ import {
   FilePenIcon,
   Image,
   LibraryBigIcon,
+  Mic,
   Settings,
   ShapesIcon,
   Video,
+  VideoOff,
 } from 'lucide-react';
 
 export interface NavigationRoute {
@@ -54,6 +56,26 @@ export const NAVIGATION_ROUTES: NavigationRoute[] = [
     keywordsKey: 'cmdk.keywords.video',
     path: '/video',
     pathPrefix: '/video',
+  },
+  {
+    cmdkKey: 'cmdk.videoEdit',
+    electronKey: 'navigation.videoEdit',
+    icon: VideoOff,
+    id: 'video-edit',
+    keywords: ['video', 'edit', 'wan', 'modify'],
+    keywordsKey: 'cmdk.keywords.videoEdit',
+    path: '/video-edit',
+    pathPrefix: '/video-edit',
+  },
+  {
+    cmdkKey: 'cmdk.speech',
+    electronKey: 'navigation.speech',
+    icon: Mic,
+    id: 'speech',
+    keywords: ['speech', 'asr', 'transcription', 'voice'],
+    keywordsKey: 'cmdk.keywords.speech',
+    path: '/speech',
+    pathPrefix: '/speech',
   },
   {
     cmdkKey: 'cmdk.painting',
@@ -119,5 +141,7 @@ export const getRouteById = (id: string): NavigationRoute | undefined =>
  */
 export const getNavigableRoutes = (): NavigationRoute[] =>
   NAVIGATION_ROUTES.filter((r) =>
-    ['community', 'video', 'image', 'resource', 'page', 'memory'].includes(r.id),
+    ['community', 'video', 'video-edit', 'speech', 'image', 'resource', 'page', 'memory'].includes(
+      r.id,
+    ),
   );
