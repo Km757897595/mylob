@@ -137,3 +137,8 @@ pnpm-lock.yaml
 spaHtmlTemplates.ts
 mylob-2026-04-20.tar.gz
 mylob-2026-04-07.tar.gz
+
+# 软著导出目录（由 scripts/softcopyright-export/export.py 生成）
+softcopyright-source/
+# 软著合并单行本（由 scripts/softcopyright-export/build_submission_txt.py 生成）
+软著源代码节选.txt

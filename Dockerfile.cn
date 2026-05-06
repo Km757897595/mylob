@@ -4,7 +4,7 @@ ARG NODEJS_VERSION="24"
 ## Base image for all building stages
 FROM docker.1ms.run/library/node:${NODEJS_VERSION}-slim AS base
 
-ARG USE_CN_MIRROR
+ARG USE_CN_MIRROR=true
 
 ENV DEBIAN_FRONTEND="noninteractive"
 
@@ -13,7 +13,7 @@ RUN set -e && \
         sed -i "s/deb.debian.org/mirrors.ustc.edu.cn/g" "/etc/apt/sources.list.d/debian.sources"; \
     fi && \
     apt update && \
-    apt install ca-certificates proxychains-ng -qy && \
+    apt install ca-certificates proxychains-ng --no-install-recommends -qy && \
     mkdir -p /distroless/bin /distroless/etc /distroless/etc/ssl/certs /distroless/lib && \
     cp /usr/lib/$(arch)-linux-gnu/libproxychains.so.4 /distroless/lib/libproxychains.so.4 && \
     cp /usr/lib/$(arch)-linux-gnu/libdl.so.2 /distroless/lib/libdl.so.2 && \
@@ -29,7 +29,9 @@ RUN set -e && \
 ## Builder image, install all the dependencies and build the app
 FROM base AS builder
 
-ARG USE_CN_MIRROR
+ARG USE_CN_MIRROR=true
+ARG NPM_REGISTRY="https://registry.npmmirror.com"
+ARG BUILD_NODE_OPTIONS="--max-old-space-size=12288"
 ARG NEXT_PUBLIC_BASE_PATH
 ARG NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_ANALYTICS_POSTHOG
@@ -83,7 +85,17 @@ RUN --mount=type=cache,id=lobehub-npm-cache,target=/root/.npm \
     if [ "${USE_CN_MIRROR:-false}" = "true" ]; then \
         export SENTRYCLI_CDNURL="https://npmmirror.com/mirrors/sentry-cli"; \
         export FFMPEG_BINARIES_URL="https://npmmirror.com/mirrors/ffmpeg-static"; \
+        export ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"; \
+        export npm_config_disturl="https://npmmirror.com/mirrors/node"; \
+        export npm_config_canvas_binary_host_mirror="https://npmmirror.com/mirrors/canvas"; \
+        export npm_config_sharp_binary_host="https://npmmirror.com/mirrors/sharp"; \
+        export npm_config_sharp_libvips_binary_host="https://npmmirror.com/mirrors/sharp-libvips"; \
+        npm config set registry "${NPM_REGISTRY}"; \
+        echo "registry=${NPM_REGISTRY}" >> .npmrc; \
+        echo 'disturl=https://npmmirror.com/mirrors/node' >> .npmrc; \
         echo 'canvas_binary_host_mirror=https://npmmirror.com/mirrors/canvas' >> .npmrc; \
+        echo 'sharp_binary_host=https://npmmirror.com/mirrors/sharp' >> .npmrc; \
+        echo 'sharp_libvips_binary_host=https://npmmirror.com/mirrors/sharp-libvips' >> .npmrc; \
     fi && \
     export COREPACK_HOME="/root/.cache/node/corepack" && \
     export COREPACK_NPM_REGISTRY=$(npm config get registry | sed 's/\/$//') && \
@@ -91,6 +103,9 @@ RUN --mount=type=cache,id=lobehub-npm-cache,target=/root/.npm \
     corepack enable && \
     corepack use $(sed -n 's/.*"packageManager": "\(.*\)".*/\1/p' package.json) && \
     pnpm config set store-dir /pnpm/store && \
+    if [ "${USE_CN_MIRROR:-false}" = "true" ]; then \
+        pnpm config set registry "${NPM_REGISTRY}"; \
+    fi && \
     pnpm i --prefer-offline && \
     mkdir -p /deps && \
     cd /deps && \
@@ -104,8 +119,13 @@ COPY . .
 RUN pnpm exec tsx scripts/dockerPrebuild.mts
 RUN rm -rf src/app/desktop "src/app/(backend)/trpc/desktop"
 
-# run build standalone for docker version
-RUN npm run build:docker
+# Run the same build steps as build:docker, but keep Dockerfile.cn's heap limit scoped to local CN builds.
+RUN set -e && \
+    NODE_OPTIONS="${BUILD_NODE_OPTIONS}" pnpm run build:spa:raw && \
+    NODE_OPTIONS="${BUILD_NODE_OPTIONS}" MOBILE=true pnpm exec vite build && \
+    pnpm run build:spa:copy && \
+    NODE_OPTIONS="${BUILD_NODE_OPTIONS}" DOCKER=true pnpm exec next build && \
+    pnpm run build-sitemap
 
 ## Application image, copy all the files for production
 FROM docker.1ms.run/library/busybox:latest AS app

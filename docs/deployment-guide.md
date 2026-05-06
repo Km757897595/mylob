@@ -123,8 +123,8 @@
 
 ```bash
 docker buildx build \
+  -f Dockerfile.cn \
   --platform linux/amd64 \
-  --build-arg USE_CN_MIRROR=true \
   -t registry.example.com/yourname/mylob:2026-04-02 \
   -t registry.example.com/yourname/mylob:latest \
   --push \
@@ -135,12 +135,15 @@ docker buildx build \
 
 - `latest` 便于简单更新
 - 带日期或版本号的 tag 便于回滚
-- 如果你不在中国大陆，`--build-arg USE_CN_MIRROR=true` 可以去掉
+- 中国大陆本地构建推荐使用 `Dockerfile.cn`，它默认使用国内基础镜像、Debian 源、npm/pnpm registry 与常见 native binary 镜像源
+- 如果你不在中国大陆，可以去掉 `-f Dockerfile.cn`，改用默认 `Dockerfile`
+- 如需替换 npm registry，可以追加 `--build-arg NPM_REGISTRY=https://registry.npmmirror.com`
+- 如果构建在 `vite build` 阶段出现 `JavaScript heap out of memory`，优先给 Docker Desktop / OrbStack 分配更多内存；也可以追加 `--build-arg BUILD_NODE_OPTIONS=--max-old-space-size=12288`
 
 补充说明：
 
 - Dockerfile 中的缓存优化更偏向 “后续重复构建提速”
-- 第一次完整构建时，依然可能因为依赖下载而较慢
+- `Dockerfile.cn` 更偏向 “首次在国内本地构建提速”，但 Next.js/ Vite 编译本身仍会占用较长时间
 - 如果你只是要尽快上线，优先选择 “本地或 CI 构建，再推送到服务器”
 
 ### 5.3 没有镜像仓库时的替代方案
@@ -148,7 +151,7 @@ docker buildx build \
 如果你暂时没有私有镜像仓库，可以本地构建并导出：
 
 ```bash
-docker build --build-arg USE_CN_MIRROR=true -t mylob:2026-04-02 .
+docker build -f Dockerfile.cn -t mylob:2026-04-02 .
 docker save mylob:2026-04-02 | gzip > mylob-2026-04-02.tar.gz
 ```
 
@@ -653,6 +656,7 @@ DATABASE_URL=postgresql://postgres:你的密码@127.0.0.1:5432/lobechat bunx tsx
 
 ```bash
 docker buildx build \
+  -f Dockerfile.cn \
   --platform linux/amd64 \
   -t registry.example.com/yourname/mylob:2026-04-03 \
   -t registry.example.com/yourname/mylob:latest \

@@ -48,9 +48,9 @@ const BrowserSTT = memo<{ mobile?: boolean }>(({ mobile }) => {
   const [error, setError] = useState<ChatMessageError>();
   const { t } = useTranslation('chat');
 
-  const [loading, updateMessageInput] = useChatStore((s) => [
+  const [loading, mainInputEditor] = useChatStore((s) => [
     operationSelectors.isAgentRuntimeRunning(s),
-    s.updateMessageInput,
+    s.mainInputEditor,
   ]);
 
   const setDefaultError = useCallback(
@@ -82,7 +82,7 @@ const BrowserSTT = memo<{ mobile?: boolean }>(({ mobile }) => {
     },
     onTextChange: (text) => {
       if (loading) stop();
-      if (text) updateMessageInput(text);
+      if (text) mainInputEditor?.setDocument('markdown', text);
     },
   });
 

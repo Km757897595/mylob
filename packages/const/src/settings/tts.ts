@@ -11,11 +11,11 @@ export const DEFAULT_TTS_CONFIG: UserTTSConfig = {
     ttsModel: 'tts-1',
   },
   selectedVoice: {
-    label: 'Alloy',
-    service: 'openai',
-    voiceId: 'alloy',
+    label: 'Offline Female',
+    service: 'offline',
+    voiceId: 'offline-female',
   },
-  service: 'openai',
+  service: 'offline',
   sttAutoStop: true,
-  sttServer: 'openai',
+  sttServer: 'browser',
 };

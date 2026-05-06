@@ -2,7 +2,7 @@ import { type ChatMessageError } from '@lobechat/types';
 import { Alert, Button, Flexbox, Highlighter } from '@lobehub/ui';
 import { createStaticStyles, cssVar } from 'antd-style';
 import { Mic, MicOff } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Action from '../components/Action';
@@ -41,17 +41,19 @@ const CommonSTT = memo<{
     desc,
   }) => {
     const { t } = useTranslation('chat');
-    const [dropdownOpen, setDropdownOpen] = useState(false);
 
-    const handleDropdownVisibleChange = (open: boolean) => {
-      setDropdownOpen(open);
-    };
+    // 仅在真实状态发生时自动弹出气泡：录音中 / 录音后等待转写 / 出错
+    // 点击只负责 start/stop，避免点击与气泡 open 状态相互干扰
+    const showFeedback = !!error || isRecording || isLoading;
+    // 只有「已停止录音、但仍在 loading（即等待后端转写）」才显示「润色中…」
+    // 这避免 browser 模式下 isRecording===isLoading 时出现误导性文案
+    const isPolishing = isLoading && !isRecording;
 
     return (
       <Action
         active={isRecording}
         icon={isLoading ? MicOff : Mic}
-        title={dropdownOpen ? undefined : desc}
+        title={desc}
         variant={mobile ? 'outlined' : 'borderless'}
         dropdown={{
           menu: {
@@ -71,14 +73,13 @@ const CommonSTT = memo<{
                 label: (
                   <Flexbox horizontal align={'center'} gap={8}>
                     <div className={styles.recording} />
-                    {time > 0 ? formattedTime : t(isRecording ? 'stt.loading' : 'stt.prettifying')}
+                    {time > 0 ? formattedTime : t(isPolishing ? 'stt.prettifying' : 'stt.loading')}
                   </Flexbox>
                 ),
               },
             ],
           },
-          onOpenChange: handleDropdownVisibleChange,
-          open: dropdownOpen || !!error || isRecording || isLoading,
+          open: showFeedback,
           placement: mobile ? 'topRight' : 'top',
           popupRender: error
             ? () => (
@@ -107,7 +108,6 @@ const CommonSTT = memo<{
                 />
               )
             : undefined,
-          trigger: 'click',
         }}
         onClick={handleTriggerStartStop}
       />

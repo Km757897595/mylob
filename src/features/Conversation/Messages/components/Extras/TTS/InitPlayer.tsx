@@ -19,6 +19,7 @@ const InitPlayer = memo<TTSProps>(({ id, content, contentMd5, file }) => {
   const [isStart, setIsStart] = useState(false);
   const [error, setError] = useState<ChatMessageError>();
   const isDeletedRef = useRef(false);
+  const isAutoStartedRef = useRef(false);
   const uploadTTS = useFileStore((s) => s.uploadTTSByArrayBuffers);
   const { t } = useTranslation('chat');
 
@@ -79,11 +80,13 @@ const InitPlayer = memo<TTSProps>(({ id, content, contentMd5, file }) => {
   }, [start]);
 
   useEffect(() => {
-    // Skip if file exists or user has deleted TTS
-    if (file || isDeletedRef.current) return;
+    // Skip if file exists, user has deleted TTS, or auto-start has already fired once.
+    // 必须用 ref 防止 setIsStart 触发重渲染后 handleInitStart 引用变化、
+    // 进而让该 effect 重跑、二次调用 start() —— 二次 start() 会 synth.cancel() 掉首次朗读。
+    if (file || isDeletedRef.current || isAutoStartedRef.current) return;
     const timer = setTimeout(() => {
-      // Double check in case user deleted during the delay
-      if (isDeletedRef.current) return;
+      if (isDeletedRef.current || isAutoStartedRef.current) return;
+      isAutoStartedRef.current = true;
       handleInitStart();
     }, 100);
     return () => clearTimeout(timer);

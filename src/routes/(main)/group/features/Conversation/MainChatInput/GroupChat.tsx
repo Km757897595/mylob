@@ -22,6 +22,7 @@ import { useSendMenuItems } from './useSendMenuItems';
 const leftActions: ActionKeys[] = [
   'typo',
   'fileUpload',
+  'stt',
   '---',
   ['tools', 'params', 'clear'],
   'mainToken',
