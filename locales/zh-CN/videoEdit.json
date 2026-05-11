@@ -1,4 +1,7 @@
 {
+  "config.duration.label": "时长（{{value}} 秒，最长 5 秒）",
+  "config.model.label": "编辑模型",
+  "config.model.placeholder": "选择视频编辑模型",
   "config.prompt.label": "编辑提示词",
   "config.prompt.placeholder": "描述如何编辑视频",
   "config.referenceImages.label": "参考图片（可选，最多 4 张）",
@@ -6,6 +9,9 @@
   "config.videoUrl.label": "源视频",
   "task.download": "下载视频",
   "task.failed": "视频编辑失败",
+  "task.missingKey.action": "前往配置",
+  "task.missingKey.description": "Wan VideoEdit 由阿里云百炼平台提供，请在「设置 → AI 服务商 → 阿里云百炼」中填入 API Key 后重试；也可以在服务端配置 DASHSCOPE_API_KEY 环境变量。",
+  "task.missingKey.title": "尚未配置百炼 API Key",
   "task.networkError": "网络错误，请重试",
   "task.processing": "编辑中，请稍候...",
   "task.submitError": "提交编辑任务失败",

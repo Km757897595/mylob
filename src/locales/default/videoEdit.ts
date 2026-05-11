@@ -1,4 +1,7 @@
 export default {
+  'config.duration.label': 'Duration ({{value}}s, up to 5s)',
+  'config.model.label': 'Edit Model',
+  'config.model.placeholder': 'Select a video edit model',
   'config.prompt.label': 'Edit Prompt',
   'config.prompt.placeholder': 'Describe how to edit the video',
   'config.referenceImages.label': 'Reference Images (optional, up to 4)',
@@ -10,6 +13,10 @@ export default {
   'upload.reading': 'Reading file...',
   'upload.uploading': 'Uploading...',
   'task.failed': 'Video editing failed',
+  'task.missingKey.action': 'Open Settings',
+  'task.missingKey.description':
+    'Wan VideoEdit is served by Aliyun Bailian. Add your API key under Settings → AI Provider → Aliyun Bailian, or set the DASHSCOPE_API_KEY env var on the server.',
+  'task.missingKey.title': 'Aliyun Bailian API key not configured',
   'task.networkError': 'Network error, please try again',
   'task.processing': 'Editing in progress, please wait...',
   'task.submitError': 'Failed to submit editing task',

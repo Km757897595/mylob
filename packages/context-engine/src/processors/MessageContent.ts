@@ -2,7 +2,7 @@ import { filesPrompts } from '@lobechat/prompts';
 import type { MessageContentPart } from '@lobechat/types';
 import { imageUrlToBase64 } from '@lobechat/utils/imageToBase64';
 import { parseDataUri } from '@lobechat/utils/uriParser';
-import { isDesktopLocalStaticServerUrl } from '@lobechat/utils/url';
+import { isDesktopLocalStaticServerUrl, isLocalOrPrivateUrl } from '@lobechat/utils/url';
 import debug from 'debug';
 
 import { BaseProcessor } from '../base/BaseProcessor';
@@ -381,9 +381,20 @@ export class MessageContentProcessor extends BaseProcessor {
         const { type } = parseDataUri(image.url);
 
         let processedUrl = image.url;
-        if (type === 'url' && isDesktopLocalStaticServerUrl(image.url)) {
-          const { base64, mimeType } = await imageUrlToBase64(image.url);
-          processedUrl = `data:${mimeType};base64,${base64}`;
+        if (type === 'url') {
+          // Convert to base64 when:
+          // 1. desktop local static server URL (127.0.0.1) — existing behavior
+          // 2. URL points to localhost / private network (e.g. self-hosted rustfs/MinIO)
+          //    so that remote model providers can still see the image
+          if (isDesktopLocalStaticServerUrl(image.url)) {
+            const { base64, mimeType } = await imageUrlToBase64(image.url);
+            processedUrl = `data:${mimeType};base64,${base64}`;
+          } else if (isLocalOrPrivateUrl(image.url)) {
+            const { base64, mimeType } = await imageUrlToBase64(image.url, {
+              allowPrivateIPAddress: true,
+            });
+            processedUrl = `data:${mimeType};base64,${base64}`;
+          }
         }
 
         return {

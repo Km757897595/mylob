@@ -1,4 +1,5 @@
 import { imageUrlToBase64, videoUrlToBase64 } from '@lobechat/utils';
+import { isLocalOrPrivateUrl } from '@lobechat/utils/url';
 import type OpenAI from 'openai';
 import { toFile } from 'openai';
 
@@ -25,11 +26,20 @@ export const convertMessageContent = async (
   if (content.type === 'image_url') {
     const { type } = parseDataUri(content.image_url.url);
 
+    const isLocalUrl = type === 'url' && isLocalOrPrivateUrl(content.image_url.url);
     const shouldUseBase64 =
-      options?.forceImageBase64 || process.env.LLM_VISION_IMAGE_USE_BASE64 === '1';
+      options?.forceImageBase64 ||
+      process.env.LLM_VISION_IMAGE_USE_BASE64 === '1' ||
+      // Auto-convert local/private URLs (e.g. self-hosted rustfs/MinIO at 127.0.0.1)
+      // because remote model providers cannot reach them.
+      isLocalUrl;
 
     if (type === 'url' && shouldUseBase64) {
-      const { base64, mimeType } = await imageUrlToBase64(content.image_url.url);
+      // For local/private URLs we explicitly trust them and bypass SSRF guard,
+      // so users don't need to set SSRF_ALLOW_PRIVATE_IP_ADDRESS=1 just for this.
+      const { base64, mimeType } = isLocalUrl
+        ? await imageUrlToBase64(content.image_url.url, { allowPrivateIPAddress: true })
+        : await imageUrlToBase64(content.image_url.url);
 
       return {
         ...content,

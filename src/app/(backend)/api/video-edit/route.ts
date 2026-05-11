@@ -1,36 +1,76 @@
+import { getUserAuth } from '@lobechat/utils/server';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || '';
-const DASHSCOPE_BASE = 'https://dashscope.aliyuncs.com/api/v1';
+import { AiProviderModel } from '@/database/models/aiProvider';
+import { getServerDB } from '@/database/server';
+import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
+
+import { getDispatcher, listSupportedProviders, VideoEditError } from './dispatchers';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+const DEFAULT_PROVIDER = 'dashscope';
 
 /**
- * Rewrite an internal proxy URL (e.g. http://localhost:3010/f/:id) into a
- * publicly reachable URL so DashScope can fetch it. Only the origin is
- * replaced; already-public URLs are returned unchanged.
+ * 阿里云百炼 (Aliyun Bailian) 在 LobeChat AI 服务商体系里的 id 是 `qwen`，
+ * 此 dispatcher 把它和 `dashscope` 视为同一套 keyVault 来源。
  */
-function toPublicUrl(url: string): string {
-  const publicOrigin = process.env.WEBHOOK_PROXY_URL || process.env.APP_URL;
-  if (!publicOrigin) return url;
+const BAILIAN_PROVIDER_ID = 'qwen';
+
+function decodeTaskId(raw: string): { provider: string; taskId: string } {
+  const idx = raw.indexOf(':');
+  if (idx === -1) return { provider: DEFAULT_PROVIDER, taskId: raw };
+  return { provider: raw.slice(0, idx), taskId: raw.slice(idx + 1) };
+}
+
+/**
+ * 解析用户在「设置 → AI 服务商 → 阿里云百炼」中配置的 apiKey。
+ * 未登录或未配置时返回 undefined，由 dispatcher 决定是否回退到 env。
+ */
+async function resolveBailianApiKey(): Promise<string | undefined> {
   try {
-    const parsed = new URL(url);
-    const host = parsed.hostname;
-    const isInternal =
-      host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local') || host === '0.0.0.0';
-    if (!isInternal) return url;
-    const base = new URL(publicOrigin);
-    parsed.protocol = base.protocol;
-    parsed.hostname = base.hostname;
-    parsed.port = base.port;
-    return parsed.toString();
+    const { userId } = await getUserAuth();
+    if (!userId) return undefined;
+    const db = await getServerDB();
+    const provider = await new AiProviderModel(db, userId).getAiProviderById(
+      BAILIAN_PROVIDER_ID,
+      KeyVaultsGateKeeper.getUserKeyVaults,
+    );
+    const apiKey = (provider?.keyVaults as { apiKey?: string } | undefined)?.apiKey;
+    return apiKey || undefined;
   } catch {
-    return url;
+    return undefined;
   }
 }
 
+async function resolveCreds(provider: string) {
+  if (provider === 'dashscope' || provider === 'qwen') {
+    const apiKey = await resolveBailianApiKey();
+    return { apiKey };
+  }
+  return {};
+}
+
+function errorResponse(err: VideoEditError) {
+  return NextResponse.json(
+    { code: err.code, details: err.details, error: err.message },
+    { status: err.status },
+  );
+}
+
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { prompt, videoUrl, referenceImages = [], resolution = '720P', promptExtend = true } = body;
+  const body = await req.json().catch(() => ({}));
+  const {
+    duration,
+    model,
+    prompt,
+    provider = DEFAULT_PROVIDER,
+    referenceImages = [],
+    resolution = '720P',
+    videoUrl,
+  } = body || {};
 
   if (!videoUrl) {
     return NextResponse.json({ error: 'videoUrl is required' }, { status: 400 });
@@ -38,66 +78,58 @@ export async function POST(req: NextRequest) {
   if (!prompt) {
     return NextResponse.json({ error: 'prompt is required' }, { status: 400 });
   }
-
-  const media: Array<{ type: string; url: string }> = [
-    { type: 'video', url: toPublicUrl(videoUrl) },
-  ];
-  for (const imgUrl of referenceImages) {
-    media.push({ type: 'reference_image', url: toPublicUrl(imgUrl) });
+  if (!model) {
+    return NextResponse.json({ error: 'model is required' }, { status: 400 });
   }
 
-  const payload = {
-    model: 'wan2.7-videoedit',
-    input: { media, prompt },
-    parameters: { prompt_extend: promptExtend, resolution },
-  };
-
-  // eslint-disable-next-line no-console
-  console.log('[video-edit] submit payload:', JSON.stringify(payload));
-
-  const resp = await fetch(`${DASHSCOPE_BASE}/services/aigc/video-generation/video-synthesis`, {
-    body: JSON.stringify(payload),
-    headers: {
-      'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
-      'Content-Type': 'application/json',
-      'X-DashScope-Async': 'enable',
-    },
-    method: 'POST',
-  });
-
-  const data = await resp.json();
-  if (!resp.ok) {
-    console.error('[video-edit] DashScope error:', resp.status, data);
+  const dispatcher = getDispatcher(provider);
+  if (!dispatcher) {
     return NextResponse.json(
-      { error: data.message || 'DashScope API error', details: data },
-      { status: resp.status },
+      {
+        error: `Unsupported provider "${provider}". Supported: ${listSupportedProviders().join(', ')}`,
+      },
+      { status: 400 },
     );
   }
 
-  return NextResponse.json({ taskId: data.output?.task_id });
+  try {
+    const creds = await resolveCreds(provider);
+    const { taskId } = await dispatcher.submit({
+      ...creds,
+      duration,
+      model,
+      prompt,
+      referenceImages,
+      resolution,
+      videoUrl,
+    });
+    return NextResponse.json({ taskId: `${provider}:${taskId}` });
+  } catch (e) {
+    const err = e instanceof VideoEditError ? e : new VideoEditError(String(e), 500);
+    console.error('[video-edit] submit error:', err.message, err.details);
+    return errorResponse(err);
+  }
 }
 
 export async function GET(req: NextRequest) {
-  const taskId = req.nextUrl.searchParams.get('taskId');
-  if (!taskId) {
+  const raw = req.nextUrl.searchParams.get('taskId');
+  if (!raw) {
     return NextResponse.json({ error: 'taskId is required' }, { status: 400 });
   }
 
-  const resp = await fetch(`${DASHSCOPE_BASE}/tasks/${taskId}`, {
-    headers: { Authorization: `Bearer ${DASHSCOPE_API_KEY}` },
-  });
-
-  const data = await resp.json();
-  if (!resp.ok) {
-    return NextResponse.json(
-      { error: data.message || 'DashScope API error' },
-      { status: resp.status },
-    );
+  const { provider, taskId } = decodeTaskId(raw);
+  const dispatcher = getDispatcher(provider);
+  if (!dispatcher) {
+    return NextResponse.json({ error: `Unsupported provider "${provider}"` }, { status: 400 });
   }
 
-  const output = data.output ?? {};
-  return NextResponse.json({
-    status: output.task_status,
-    videoUrl: output.video_url ?? null,
-  });
+  try {
+    const creds = await resolveCreds(provider);
+    const result = await dispatcher.query(taskId, creds);
+    return NextResponse.json(result);
+  } catch (e) {
+    const err = e instanceof VideoEditError ? e : new VideoEditError(String(e), 500);
+    console.error('[video-edit] query error:', err.message);
+    return errorResponse(err);
+  }
 }

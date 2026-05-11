@@ -5,13 +5,18 @@ import { Alert, Button, Progress, Spin, Typography } from 'antd';
 import { Clapperboard } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { useVideoEditStore } from '@/store/videoEdit';
+
+const MISSING_DASHSCOPE_KEY_CODE = 'MISSING_DASHSCOPE_KEY';
+const BAILIAN_SETTINGS_PATH = '/settings/provider/qwen';
 
 const POLL_INTERVAL = 5000;
 
 const EditWorkspace = memo(() => {
   const { t } = useTranslation('videoEdit');
+  const navigate = useNavigate();
   const config = useVideoEditStore((s) => s.config);
   const task = useVideoEditStore((s) => s.task);
   const setTask = useVideoEditStore((s) => s.setTask);
@@ -37,7 +42,12 @@ const EditWorkspace = memo(() => {
             setProgress(100);
           } else if (data.status === 'FAILED') {
             stopPolling();
-            setTask({ error: t('task.failed'), status: 'failed' });
+            const detail = data.errorMessage || data.errorCode;
+            setTask({
+              error: detail ? `${t('task.failed')}: ${detail}` : t('task.failed'),
+              errorCode: data.errorCode,
+              status: 'failed',
+            });
           } else {
             setProgress((p) => Math.min(p + 5, 90));
           }
@@ -52,12 +62,15 @@ const EditWorkspace = memo(() => {
 
   const handleSubmit = useCallback(async () => {
     if (!config.videoUrl || !config.prompt) return;
-    setTask({ error: undefined, resultUrl: undefined, status: 'pending' });
+    setTask({ error: undefined, errorCode: undefined, resultUrl: undefined, status: 'pending' });
     setProgress(0);
     try {
       const resp = await fetch('/api/video-edit', {
         body: JSON.stringify({
+          duration: config.duration,
+          model: config.model,
           prompt: config.prompt,
+          provider: config.provider,
           referenceImages: config.referenceImages.filter(Boolean),
           resolution: config.resolution,
           videoUrl: config.videoUrl,
@@ -67,7 +80,11 @@ const EditWorkspace = memo(() => {
       });
       const data = await resp.json();
       if (!resp.ok || !data.taskId) {
-        setTask({ error: data.error || t('task.submitError'), status: 'failed' });
+        setTask({
+          error: data.error || t('task.submitError'),
+          errorCode: data.code,
+          status: 'failed',
+        });
         return;
       }
       setTask({ status: 'processing', taskId: data.taskId });
@@ -109,7 +126,21 @@ const EditWorkspace = memo(() => {
         </Flexbox>
       )}
 
-      {task.status === 'failed' && (
+      {task.status === 'failed' && task.errorCode === MISSING_DASHSCOPE_KEY_CODE && (
+        <Alert
+          showIcon
+          description={t('task.missingKey.description')}
+          message={t('task.missingKey.title')}
+          type="warning"
+          action={
+            <Button size="small" type="primary" onClick={() => navigate(BAILIAN_SETTINGS_PATH)}>
+              {t('task.missingKey.action')}
+            </Button>
+          }
+        />
+      )}
+
+      {task.status === 'failed' && task.errorCode !== MISSING_DASHSCOPE_KEY_CODE && (
         <Alert showIcon message={task.error || t('task.failed')} type="error" />
       )}
 

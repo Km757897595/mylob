@@ -36,19 +36,31 @@ export const imageToBase64 = ({
   return canvas.toDataURL(type);
 };
 
+export interface ImageUrlToBase64Options {
+  /** Whether to allow fetching from private/loopback IP addresses (server-side only) */
+  allowPrivateIPAddress?: boolean;
+}
+
 /**
  * Convert image URL to base64
  * Uses SSRF-safe fetch on server-side to prevent SSRF attacks
  */
 export const imageUrlToBase64 = async (
   imageUrl: string,
+  options?: ImageUrlToBase64Options,
 ): Promise<{ base64: string; mimeType: string }> => {
   try {
     const isServer = typeof window === 'undefined';
 
     // Use SSRF-safe fetch on server-side to prevent SSRF attacks
     const res = isServer
-      ? await import('@lobechat/ssrf-safe-fetch').then((m) => m.ssrfSafeFetch(imageUrl))
+      ? await import('@lobechat/ssrf-safe-fetch').then((m) =>
+          m.ssrfSafeFetch(
+            imageUrl,
+            undefined,
+            options?.allowPrivateIPAddress ? { allowPrivateIPAddress: true } : undefined,
+          ),
+        )
       : await fetch(imageUrl);
 
     const blob = await res.blob();
